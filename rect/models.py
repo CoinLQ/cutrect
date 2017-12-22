@@ -191,12 +191,12 @@ class Schedule(models.Model):
         default=SliceType.PREPAGE,
         verbose_name=u'切分方式',
     )
-    task_info = models.TextField(verbose_name=u'任务格式化描述')
+    desc = models.TextField(null=True, blank=True, verbose_name=u'计划格式化描述')
     user_group = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name=u'分配组') #todo 1204 需要跟用户系统组对接.
     status = models.PositiveSmallIntegerField(
         db_index=True,
         choices=ScheduleStatus.CHOICES,
-        default=ScheduleStatus.NOT_ACTIVE,
+        default=ScheduleStatus.ACTIVE,
         verbose_name=u'计划状态',
     )
     end_date = models.DateField(null=True, blank=True, db_index=True, verbose_name=u'截止日期')
@@ -227,6 +227,7 @@ class Task(models.Model):
         default=SliceType.PREPAGE,
         verbose_name=u'切分方式',
     )
+    desc = models.TextField(null=True, blank=True, verbose_name=u'任务格式化描述')
     status = models.PositiveSmallIntegerField(
         db_index=True,
         choices=TaskStatus.CHOICES,

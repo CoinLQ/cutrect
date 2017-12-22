@@ -63,5 +63,5 @@ class ScheduleModelForm(forms.ModelForm):
         return super(BatchModelForm, self).save(commit=commit)
 
     class Meta:
-        fields = ('batch', 'name', 'type', 'task_info', 'user_group', 'status', 'end_date', 'remark')
+        fields = ('batch', 'name', 'type', 'desc', 'user_group', 'status', 'end_date', 'remark')
         model = Schedule
