@@ -210,30 +210,108 @@ class AllocateTask(object):
     def __init__(self, schedule):
         self.schedule = schedule
 
-    def allocate(self,):
+    def allocate(self):
         pass
 
 class CCAllocateTask(AllocateTask):
 
-    def allocate(self,):
-        if self.schedule:
-            pass
+    def allocate(self):
+        CCTask = ContentType.objects.get(app_label='rect', model='cctask').model_class()
+        batch = self.schedule.batch
+        json_data = json.parser(self.schedule.desc)
+        count = json_data['block_size']
+        cc_threshold = json_data['cc_val']
+        rect_set = []
+        task_set = []
+        for rect in Rect.objects.filter(batch=batch, cc__lte=cc_threshold):
+            rect_set.append(rect.id)
+            if len(rect_set) == count:
+                task = CCTask(schedule=self.schedule, ttype=SliceType.CC, count=count,
+                              rect_set=CCTask.serialize_set(rect_set), cc_threshold=rect.cc)
+                rect_set.clear()
+                task_set.append(task)
+                if len(task_set) == count:
+                    CCTask.objects.bulk_create(task_set)
+                    task_set.clear()
+
+        CCTask.objects.bulk_create(task_set)
 
 
-class ClusterAllocateTask(AllocateTask):
-    pass
 
-class PrepageAllocateTask(AllocateTask):
-    pass
+class ClassifyAllocateTask(AllocateTask):
+
+    def allocate(self):
+        ClassifyTask = ContentType.objects.get(app_label='rect', model='classifytask').model_class()
+        batch = self.schedule.batch
+        json_data = json.parser(self.schedule.desc)
+        count = json_data['block_size']
+        target_char_set = json_data['scope']
+        rect_set = []
+        word_set = {}
+        task_set = []
+        if target_char_set == "all":
+           query_set = Rect.objects.filter(batch=batch).order_by('word')
+        else:
+            target_char_set = target_char_set.split(',')
+            query_set = Rect.objects.filter(pk__in=target_char_set).order_by('word')
+
+        for rect in query_set:
+            rect_set.append(rect.id)
+            word_set[rect.word] = 1
+
+            if len(rect_set) == count:
+                task = ClassifyTask(schedule=self.schedule, ttype=SliceType.CLASSIFY, count=count,
+                                    rect_set=ClassifyTask.serialize_set(rect_set),
+                                    char_set=ClassifyTask.serialize_set(word_set.keys()))
+                rect_set.clear()
+                word_set.clear()
+                task_set.append(task)
+                if len(task_set) == count:
+                    ClassifyTask.objects.bulk_create(task_set)
+                    task_set.clear()
+
+        ClassifyTask.objects.bulk_create(task_set)
+
+
+
+class PerpageAllocateTask(AllocateTask):
+
+    def allocate(self):
+        PageTask = ContentType.objects.get(app_label='rect', model='pagetask').model_class()
+        batch = self.schedule.batch
+        json_data = json.parser(self.schedule.desc)
+        count = json_data['block_size']
+        page_header = json_data['page_header']
+        if page_header:
+            page_regex = r'^'+ page_header + r'.*'
+            query_set = PageRect.objects.filter(batch=batch, name__iregex=page_regex)
+        else:
+            query_set = PageRect.objects.filter(batch=batch)
+
+        page_set = []
+        task_set = []
+        for page in query_set:
+            page_set.append(page.id)
+            if len(page_set) == count:
+                task = PageTask(schedule=self.schedule, ttype=SliceType.PPAGE, count=count,
+                              page_set=PageTask.serialize_set(page_set))
+                page_set.clear()
+                task_set.append(task)
+                if len(task_set) == count:
+                    PageTask.objects.bulk_create(task_set)
+                    task_set.clear()
+
+        PageTask.objects.bulk_create(task_set)
 
 
 def allocateTasks(schedule):
     org = int(schedule.org)
     allocator = None
     if org == SliceType.CC: # 置信度
-        allocator = CCAllocateTask()
-    elif org == SliceType.CLUSTER: # 聚类
-        allocator = ClusterAllocateTask()
-    elif org == SliceType.PREPAGE: # 逐页浏览
-        allocator = PrepageAllocateTask()
-    if allocator: allocator.allocate()
+        allocator = CCAllocateTask(schedule)
+    elif org == SliceType.CLASSIFY: # 聚类
+        allocator = ClassifyAllocateTask(schedule)
+    elif org == SliceType.PPAGE: # 逐页浏览
+        allocator = PerpageAllocateTask(schedule)
+    if allocator:
+        allocator.allocate()

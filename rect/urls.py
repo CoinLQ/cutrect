@@ -22,7 +22,6 @@ router.register(r'pagerect', views.PageRectViewSet)
 router.register(r'rect', views.RectViewSet)
 router.register(r'schedule', views.ScheduleViewSet)
 router.register(r'task', views.TaskViewSet)
-router.register(r'patch', views.PatchViewSet)
 router.register(r'user', views.UserViewSet)
 router.register(r'group', views.GroupViewSet)
 

@@ -42,7 +42,7 @@ class BaseSetting(object):
 class GlobalSetting(object):
     global_search_models = [Batch, Schedule, Task]
     global_models_icon = {
-        Batch: "fa fa-copy", PageRect: "fa fa-pagelines", Schedule: "fa fa-laptop", Task: "fa fa-bars", Patch: "fa fa-square"
+        Batch: "fa fa-copy", PageRect: "fa fa-pagelines", Schedule: "fa fa-laptop", Task: "fa fa-bars"
     }
     menu_style = 'default'  # 'accordion'
 
@@ -104,7 +104,7 @@ class ScheduleAdmin(object):
 
 @xadmin.sites.register(Task)
 class TaskAdmin(object):
-    list_display = ("number", "schedule", "type", "status", "date", "rect_set", "data")
+    list_display = ("number", "schedule", "ttype", "status", "date", "rect_set", "data")
     list_display_links = ("number", 'status')
     list_filter = ('schedule', 'type', 'status', 'date')
     search_fields = ["number" ]
@@ -113,15 +113,15 @@ class TaskAdmin(object):
     reversion_enable = True
 
 
-@xadmin.sites.register(Patch)
-class PatchAdmin(object):
-    list_display = ('id', 'task', 'schedule', 'word', 'cc', 'wcc', 'ts', 'ctxt', 'date', 'x', 'y', 'w', 'h', 'ln', 'cn', 'rect')
-    list_display_links = ("id",)
-    list_filter = ('task', 'schedule', 'cc', 'wcc', 'date' )
-    search_fields = ["id", 'word', 'ts' ]
-    date_hierarchy = 'date'
-    relfield_style = "fk-select"
-    reversion_enable = True
+# @xadmin.sites.register(Patch)
+# class PatchAdmin(object):
+#     list_display = ('id', 'task', 'schedule', 'word', 'cc', 'wcc', 'ts', 'ctxt', 'date', 'x', 'y', 'w', 'h', 'ln', 'cn', 'rect')
+#     list_display_links = ("id",)
+#     list_filter = ('task', 'schedule', 'cc', 'wcc', 'date' )
+#     search_fields = ["id", 'word', 'ts' ]
+#     date_hierarchy = 'date'
+#     relfield_style = "fk-select"
+#     reversion_enable = True
 
 
 @xadmin.sites.register(AccessRecord)

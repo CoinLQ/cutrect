@@ -68,10 +68,10 @@ class ScheduleSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class PatchSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Patch
-        fields = '__all__'
+# class PatchSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Patch
+#         fields = '__all__'
 
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):

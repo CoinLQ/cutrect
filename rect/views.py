@@ -34,9 +34,9 @@ class TaskViewSet(mixins.RetrieveModelMixin,
     serializer_class = TaskSerializer
 
 
-class PatchViewSet(viewsets.ModelViewSet):
-    queryset = Patch.objects.all()
-    serializer_class = PatchSerializer
+# class PatchViewSet(viewsets.ModelViewSet):
+#     queryset = Patch.objects.all()
+#     serializer_class = PatchSerializer
 
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
