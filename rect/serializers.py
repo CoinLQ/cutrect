@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 
-from django.contrib.auth.models import User, Group
 from .models import *
 from rest_framework import serializers
 
@@ -56,9 +55,22 @@ class ScheduleSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class TaskSerializer(serializers.ModelSerializer):
+class CCTaskSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Task
+        model = CCTask
+        fields = '__all__'
+
+
+class ClassifyTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassifyTask
+        fields = '__all__'
+
+
+
+class PageTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PageTask
         fields = '__all__'
 
 
@@ -74,13 +86,13 @@ class ScheduleSerializer(serializers.ModelSerializer):
 #         fields = '__all__'
 
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = User
-        fields = ('url', 'username', 'email', 'groups')
-
-
-class GroupSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = Group
-        fields = ('url', 'name')
+# class UserSerializer(serializers.HyperlinkedModelSerializer):
+#     class Meta:
+#         model = User
+#         fields = ('url', 'username', 'email', 'groups')
+#
+#
+# class GroupSerializer(serializers.HyperlinkedModelSerializer):
+#     class Meta:
+#         model = Group
+#         fields = ('url', 'name')

@@ -12,7 +12,8 @@ from django.db import models
 @receiver(models.signals.post_save, sender=Batch)
 def after_create_batch(sender, instance, created, **kwargs):
     if created:
-        parseBatchToPageRect.delay(batchId=instance.id)
+        parseBatchToPageRect(batchId=instance.id) #todo 1223 调试暂时不异步执行.
+        #parseBatchToPageRect.delay(batchId=instance.id)
 
 
 @shared_task
@@ -25,9 +26,10 @@ def parseBatchToPageRect(batchId=''):
 
 
 @receiver(models.signals.post_save, sender=Schedule)
-def after_create_batch(sender, instance, created, **kwargs):
+def after_create_schedule(sender, instance, created, **kwargs):
     if created:
-        allocateTasksBySchedule.delay(batchId=instance.id)
+        pass
+        # allocateTasksBySchedule.delay(batchId=instance.id)
 
 
 def allocateTasksBySchedule(scheduleId=''):

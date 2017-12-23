@@ -48,8 +48,16 @@ SECRET_KEY = '2dx3sbj0#=4k$xu=8h52to&a2zia%%lr(w2h4wf$zb(ux6v9az'
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-# 生产环境不开启跨域 https://zhuanlan.zhihu.com/p/25080236
-CORS_ORIGIN_ALLOW_ALL = False
+# 生产环境不开启跨域False https://zhuanlan.zhihu.com/p/25080236
+CORS_ORIGIN_ALLOW_ALL = False #开发环境配置True
+
+# 用CORS 解决vue.js django跨域调用 https://www.jianshu.com/p/1fd744512d83
+# 配置允许跨域访问的域名
+# CORS_ORIGIN_ALLOW_ALL = False
+# 默认值是全部:
+CORS_ORIGIN_WHITELIST = (
+)
+# 或者定义允许的匹配路径正则表达式. CORS_ORIGIN_REGEX_WHITELIST = ('^(https?://)?(\w+.)?>google.com$', )
 
 ADMINS = (
     #('admin', 'kangqiao182@126.com'),
@@ -88,7 +96,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    #'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -130,20 +138,20 @@ WSGI_APPLICATION = 'setting.wsgi.application'
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 DATABASES = {
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.mysql',
-    #     'NAME': 'lqcharacter2',
-    #     'USER': 'root',
-    #     'PASSWORD': 'root',
-    #     'HOST': 'localhost',
-    #     'PORT': '3306',
-    #     'OPTIONS': {'charset': 'utf8mb4', 'init_command': 'SET default_storage_engine=InnoDB'}
-    # },
-
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'test.sqlite3'),
-    }
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'cutrect',
+        'USER': 'root',
+        'PASSWORD': 'root',
+        'HOST': 'localhost',
+        'PORT': '3306',
+        'OPTIONS': {'charset': 'utf8mb4', 'init_command': 'SET default_storage_engine=InnoDB'}
+    },
+
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': os.path.join(BASE_DIR, 'test.sqlite3'),
+    # }
 }
 
 

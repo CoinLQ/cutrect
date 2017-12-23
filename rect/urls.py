@@ -7,7 +7,8 @@ from django.contrib import admin
 from django.views.generic import TemplateView
 from django.views.static import serve #处理静态文件
 from rest_framework import routers
-from . import views
+from rect.views import BatchViewSet, PageRectViewSet, RectViewSet, ScheduleViewSet, CCTaskViewSet, ClassifyTaskViewSet, PageTaskViewSet
+from rect.views import CreateScheduleView
 
 import xadmin
 # xadmin.autodiscover()
@@ -17,17 +18,18 @@ from xadmin.plugins import xversion
 xversion.register_models()
 
 router = routers.DefaultRouter()
-router.register(r'batch', views.BatchViewSet)
-router.register(r'pagerect', views.PageRectViewSet)
-router.register(r'rect', views.RectViewSet)
-router.register(r'schedule', views.ScheduleViewSet)
-router.register(r'task', views.TaskViewSet)
-router.register(r'user', views.UserViewSet)
-router.register(r'group', views.GroupViewSet)
+router.register(r'batch', BatchViewSet)
+router.register(r'pagerect', PageRectViewSet)
+router.register(r'rect', RectViewSet)
+router.register(r'schedule', ScheduleViewSet)
+router.register(r'cctask', CCTaskViewSet)
+router.register(r'classifytask', ClassifyTaskViewSet)
+router.register(r'pagetask', PageTaskViewSet)
 
 
 urlpatterns = [
-    url(r'^', include(router.urls)),
+    url(r'^api', include(router.urls)),
+    url(r'^create_schedule', CreateScheduleView.as_view(), name='create_schedule')
 ]
 
 

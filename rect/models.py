@@ -89,10 +89,16 @@ class Batch(models.Model):
         verbose_name_plural = u"批次管理"
         ordering = ('submit_date', 'name')
 
+class OPage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(max_length=64, unique=True, null=True, verbose_name=u'关联页ID')
+    s3_inset = models.FileField(blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
+                                storage='storages.backends.s3boto.S3BotoStorage')
 
 class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    page = models.CharField(max_length=64, null=True, verbose_name=u'关联页ID')
+    page = models.ForeignKey(OPage, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
+                              db_index=True, verbose_name=u'关联页信息')
     batch = models.ForeignKey(Batch, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
                               db_index=True, verbose_name=u'批次') #todo 1204 后续考虑用级联删除.
     line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数')
@@ -124,7 +130,7 @@ class PageRect(models.Model):
 #     ts = models.CharField(verbose_name=u'标字', max_length=4, default='', db_index=True)
 #     ctxt = models.CharField(verbose_name=u'标字', max_length=12, default='') #todo 1205 考虑是否必要.
 
-class RectType(object):
+class RectStatus(object):
     NORMAL = 256
     CHOICES = (
         (NORMAL, u'正常'),
@@ -133,7 +139,7 @@ class RectType(object):
 class Rect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    #type = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'类型', default=0) #todo 1015 有什么用途了
+    status = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'类型', default=0) #todo 1015 有什么用途了
     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
     w = models.PositiveSmallIntegerField(verbose_name=u'宽度', default=1,
@@ -146,12 +152,10 @@ class Rect(models.Model):
     word = models.CharField(null=True, blank=True, verbose_name=u'汉字', max_length=4, default='', db_index=True)
     wcc = models.FloatField(null=True, blank=True, verbose_name=u'文字置信度', default=1, db_index=True)
     ts = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=4, default='', db_index=True)
-    ctxt = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=12, default='') #todo 1205 考虑是否必要.
+    #ctxt = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=12, default='') #todo 1205 考虑是否必要.
 
     page_rect = models.ForeignKey(PageRect, null=True, blank=True, related_name='rects', on_delete=models.SET_NULL,
                                   verbose_name=u'源-切分页') #todo 1204 后续考虑用级联删除.
-    # batch = models.ForeignKey(Batch, null=True, blank=True, related_name='rects', on_delete=models.SET_NULL,
-    #                           db_index=True, verbose_name=u'批次')  #todo 1204 后续考虑用级联删除.
     inset = models.FileField(null=True, blank=True, help_text=u'嵌入临时截图',
                              upload_to='core.DBPicture/bytes/filename/mimetype',
                              storage=db_storage)
@@ -184,7 +188,7 @@ class Rect(models.Model):
 
 class Schedule(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    batch = models.ForeignKey(Batch, null=True, blank=True, related_name='schedules', on_delete=models.SET_NULL,
+    batch = models.ForeignKey(Batch, null=True, related_name='schedules', on_delete=models.SET_NULL,
                               db_index=True, verbose_name=u'批次')
     name = models.CharField(max_length=64, verbose_name=u'切分计划名')
     type = models.PositiveSmallIntegerField(
@@ -197,6 +201,8 @@ class Schedule(models.Model):
     user_group = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name=u'分配组') #todo 1204 需要跟用户系统组对接.
     status = models.PositiveSmallIntegerField(
         db_index=True,
+        null=True,
+        blank=True,
         choices=ScheduleStatus.CHOICES,
         default=ScheduleStatus.ACTIVE,
         verbose_name=u'计划状态',
@@ -221,8 +227,8 @@ class Task(models.Model):
     '''
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     number = models.CharField(null=True, blank=True, max_length=64, verbose_name='任务编号')
-    schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='tasks', on_delete=models.SET_NULL,
-                                 db_index=True, verbose_name=u'切分计划') #todo 1205 后续考虑级联删除.
+    # schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='tasks', on_delete=models.SET_NULL,
+    #                              db_index=True, verbose_name=u'切分计划') #todo 1205 后续考虑级联删除.
     ttype = models.PositiveSmallIntegerField(
         db_index=True,
         choices=SliceType.CHOICES,
@@ -236,7 +242,7 @@ class Task(models.Model):
         default=TaskStatus.NOT_GOT,
         verbose_name=u'任务状态',
     )
-    date = models.DateField(null=True, verbose_name=u'最近处理时间')
+    update_date = models.DateField(null=True, verbose_name=u'最近处理时间')
 
     def __str__(self):
         return self.number
@@ -246,12 +252,14 @@ class Task(models.Model):
         return ".".join(dataset)
 
     class Meta:
-        # abstract = True
+        abstract = True
         verbose_name = u"切分任务"
         verbose_name_plural = u"切分任务管理"
-        ordering = ('schedule', "number", "status")
+        ordering = ("number", "status")
 
 class CCTask(Task):
+    schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='cc_tasks', on_delete=models.SET_NULL,
+                                 db_index=True, verbose_name=u'切分计划')  # todo 1205 后续考虑级联删除.
     count = models.IntegerField("任务字块数")
     cc_threshold = models.FloatField("最高置信度")
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='cc_tasks')
@@ -263,6 +271,8 @@ class CCTask(Task):
 
 
 class ClassifyTask(Task):
+    schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='classify_tasks', on_delete=models.SET_NULL,
+                                 db_index=True, verbose_name=u'切分计划')  # todo 1205 后续考虑级联删除.
     count = models.IntegerField("任务字块数")
     char_set = models.TextField(null=True, blank=True, verbose_name=u'字符集') # [ ‘人’, ‘无’]
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='clsfiy_tasks')
@@ -273,8 +283,11 @@ class ClassifyTask(Task):
         return self.rect_set.split(',')
 
 class PageTask(Task):
+    schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='page_tasks', on_delete=models.SET_NULL,
+                                 db_index=True, verbose_name=u'切分计划')  # todo 1205 后续考虑级联删除.
     count = models.IntegerField("页的数量")
     page_set = models.TextField(null=True, verbose_name=u'页的集合') # [page_id, page_id]
+    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='page_tasks')
 
     @property
     def pages(self):
@@ -316,17 +329,17 @@ class PageTask(Task):
 #         ordering = ('schedule', "task", "word")
 
 
-class AccessRecord(models.Model):
-    date = models.DateField()
-    user_count = models.IntegerField()
-    view_count = models.IntegerField()
-
-    class Meta:
-        verbose_name = u"访问记录"
-        verbose_name_plural = verbose_name
-
-    def __str__(self):
-        return "%s Access Record" % self.date.strftime('%Y-%m-%d')
+# class AccessRecord(models.Model):
+#     date = models.DateField()
+#     user_count = models.IntegerField()
+#     view_count = models.IntegerField()
+#
+#     class Meta:
+#         verbose_name = u"访问记录"
+#         verbose_name_plural = verbose_name
+#
+#     def __str__(self):
+#         return "%s Access Record" % self.date.strftime('%Y-%m-%d')
 
 
 

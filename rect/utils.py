@@ -3,12 +3,13 @@
 import re
 import os
 import oss2
-from rect.models import ORGGroup, SliceType, Batch, PageRect, Rect
+from rect.models import ORGGroup, SliceType, Batch, PageRect, Rect, OPage
 import zipfile
 import json
 from django.db import transaction
 from setting.settings import MEDIA_ROOT
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 
 import base64
 from django.utils.six import BytesIO
@@ -183,7 +184,10 @@ class HuaNanBatchParser(BatchParser):
 
             pageRect = PageRect()
             pageRect.batch = self.batch
-            pageRect.page = imgPath
+            try:
+                pageRect.page = OPage.objects.get(code=imgPath)
+            except ObjectDoesNotExist:
+                pass
             pageRect.column_count = columnNum
             pageRect.line_count = maxLineCount
             pageRect.rect_set = json.dumps(pageRectSetList, ensure_ascii=False)

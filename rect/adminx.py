@@ -12,15 +12,14 @@ from django.db.models import Q
 from django.utils.translation import ugettext as _
 from django.db.models import Q
 
-from .froms import BatchModelForm, ScheduleModelForm
+from .forms import BatchModelForm, ScheduleModelForm
 
 @xadmin.sites.register(views.website.IndexView)
 class MainDashboard(object):
     widgets = [
         [
             {"type": "html", "title": u"大藏经", "content": "<h3> 欢迎来到龙泉大藏经切分管理平台 </h3><p>加入我们，@longquan</p>"},
-            {"type": "addform", "model": Batch},
-            {"type": "chart", "model": "rect.accessrecord", "chart": "user_count","params": {"_p_date__gte": "2017-01-01", "p": 1, "_p_date__lt": "2017-06-16"}},
+            {"type": "addform", "model": Batch}
         ],
         [
             {"type": "list", "model": "rect.Schedule", "params": {"o": "-create_date"}},
@@ -40,9 +39,9 @@ class BaseSetting(object):
 
 @xadmin.sites.register(views.CommAdminView)
 class GlobalSetting(object):
-    global_search_models = [Batch, Schedule, Task]
+    global_search_models = [Batch, Schedule]
     global_models_icon = {
-        Batch: "fa fa-copy", PageRect: "fa fa-pagelines", Schedule: "fa fa-laptop", Task: "fa fa-bars"
+        Batch: "fa fa-copy", PageRect: "fa fa-pagelines", Schedule: "fa fa-laptop" #, Task: "fa fa-bars"
     }
     menu_style = 'default'  # 'accordion'
 
@@ -85,15 +84,15 @@ class ScheduleAdmin(object):
     #form = ScheduleModelForm
 
     def remain_task_count(self, instance):
-        count = Task.objects.filter(schedule=instance.id, status__in=TaskStatus.remain_status).count()
+        count = CCTask.objects.filter(schedule=instance.id, status__in=TaskStatus.remain_status).count()
         if count > 0:
-            return """<a href='/xadmin/rect/task/?_p_roll__id__exact=%s'>%s</a>""" % (instance.id, count)
+            return """<a href='/xadmin/rect/cctask/?_p_roll__id__exact=%s'>%s</a>""" % (instance.id, count)
         return count
     remain_task_count.short_description = "未完成任务"
     remain_task_count.allow_tags = True
     remain_task_count.is_column = True
 
-    list_display = ("name", "batch", "type", "task_count", 'remain_task_count', "user_group", "status", "end_date", 'create_date')
+    list_display = ("name", "batch", "type", 'remain_task_count', "user_group", "status", "end_date", 'create_date')
     list_display_links = ("name", "status")
     list_filter = ("batch", 'type', 'user_group', 'status', 'end_date', 'create_date')
     search_fields = ["name" ]
@@ -102,15 +101,15 @@ class ScheduleAdmin(object):
     reversion_enable = True
 
 
-@xadmin.sites.register(Task)
-class TaskAdmin(object):
-    list_display = ("number", "schedule", "ttype", "status", "date", "rect_set", "data")
-    list_display_links = ("number", 'status')
-    list_filter = ('schedule', 'type', 'status', 'date')
-    search_fields = ["number" ]
-    date_hierarchy = 'date'
-    relfield_style = "fk-select"
-    reversion_enable = True
+# @xadmin.sites.register(Task)
+# class TaskAdmin(object):
+#     list_display = ("number", "schedule", "ttype", "status", "date", "rect_set", "data")
+#     list_display_links = ("number", 'status')
+#     list_filter = ('schedule', 'type', 'status', 'date')
+#     search_fields = ["number" ]
+#     date_hierarchy = 'date'
+#     relfield_style = "fk-select"
+#     reversion_enable = True
 
 
 # @xadmin.sites.register(Patch)
@@ -124,34 +123,34 @@ class TaskAdmin(object):
 #     reversion_enable = True
 
 
-@xadmin.sites.register(AccessRecord)
-class AccessRecordAdmin(object):
-    def avg_count(self, instance):
-        return int(instance.view_count / instance.user_count)
-
-    avg_count.short_description = "Avg Count"
-    avg_count.allow_tags = True
-    avg_count.is_column = True
-
-    list_display = ("date", "user_count", "view_count", "avg_count")
-    list_display_links = ("date",)
-
-    list_filter = ["date", "user_count", "view_count"]
-    actions = None
-    aggregate_fields = {"user_count": "sum", "view_count": "sum"}
-
-    refresh_times = (3, 5, 10)
-    data_charts = {
-        "user_count": {'title': u"User Report", "x-field": "date", "y-field": ("user_count", "view_count"),
-                       "order": ('date',)},
-        "avg_count": {'title': u"Avg Report", "x-field": "date", "y-field": ('avg_count',), "order": ('date',)},
-        "per_month": {'title': u"Monthly Users", "x-field": "_chart_month", "y-field": ("user_count",),
-                      "option": {
-                          "series": {"bars": {"align": "center", "barWidth": 0.8, 'show': True}},
-                          "xaxis": {"aggregate": "sum", "mode": "categories"},
-                      },
-                      },
-    }
-
-    def _chart_month(self, obj):
-        return obj.date.strftime("%B")
+# @xadmin.sites.register(AccessRecord)
+# class AccessRecordAdmin(object):
+#     def avg_count(self, instance):
+#         return int(instance.view_count / instance.user_count)
+#
+#     avg_count.short_description = "Avg Count"
+#     avg_count.allow_tags = True
+#     avg_count.is_column = True
+#
+#     list_display = ("date", "user_count", "view_count", "avg_count")
+#     list_display_links = ("date",)
+#
+#     list_filter = ["date", "user_count", "view_count"]
+#     actions = None
+#     aggregate_fields = {"user_count": "sum", "view_count": "sum"}
+#
+#     refresh_times = (3, 5, 10)
+#     data_charts = {
+#         "user_count": {'title': u"User Report", "x-field": "date", "y-field": ("user_count", "view_count"),
+#                        "order": ('date',)},
+#         "avg_count": {'title': u"Avg Report", "x-field": "date", "y-field": ('avg_count',), "order": ('date',)},
+#         "per_month": {'title': u"Monthly Users", "x-field": "_chart_month", "y-field": ("user_count",),
+#                       "option": {
+#                           "series": {"bars": {"align": "center", "barWidth": 0.8, 'show': True}},
+#                           "xaxis": {"aggregate": "sum", "mode": "categories"},
+#                       },
+#                       },
+#     }
+#
+#     def _chart_month(self, obj):
+#         return obj.date.strftime("%B")

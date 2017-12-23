@@ -1,10 +1,18 @@
 from django.shortcuts import render
 
 # Create your views here.
-from django.contrib.auth.models import User, Group
-from django.views.generic import View
+from django.views.generic.base import View
+from django.http import HttpResponse, HttpResponsePermanentRedirect
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, mixins, viewsets, views
-from .serializers import *
+from rest_framework.renderers import JSONRenderer
+
+import json
+
+
+from rect.serializers import *
+from rect.forms import ScheduleForm
+from utils.mixin_utils import LoginRequiredMixin
 
 class BatchViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Batch.objects.all()
@@ -26,30 +34,65 @@ class ScheduleViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ScheduleSerializer
 
 
-class TaskViewSet(mixins.RetrieveModelMixin,
+class CCTaskViewSet(mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
                   mixins.ListModelMixin,
                   viewsets.GenericViewSet):
-    queryset = Task.objects.all()
-    serializer_class = TaskSerializer
+    queryset = CCTask.objects.all()
+    serializer_class = CCTaskSerializer
 
+
+class ClassifyTaskViewSet(mixins.RetrieveModelMixin,
+                  mixins.UpdateModelMixin,
+                  mixins.ListModelMixin,
+                  viewsets.GenericViewSet):
+    queryset = ClassifyTask.objects.all()
+    serializer_class = ClassifyTaskSerializer
+
+class PageTaskViewSet(mixins.RetrieveModelMixin,
+                  mixins.UpdateModelMixin,
+                  mixins.ListModelMixin,
+                  viewsets.GenericViewSet):
+    queryset = PageTask.objects.all()
+    serializer_class = PageTaskSerializer
+
+
+
+#class CreateScheduleView(LoginRequiredMixin, View):
+class CreateScheduleView(View):
+
+    @csrf_exempt
+    def post(self, request):
+        scheduleForm = ScheduleForm(request.POST)
+
+        if scheduleForm.is_valid():
+            # 创建计划信息.
+            schedule = scheduleForm.save()
+            ss = ScheduleSerializer(schedule)
+            data = JSONRenderer().render(ss.data)
+
+            res = {'code': 0, 'msg': 'success'}
+            # todo 1223 异步去分配任务.
+        else:
+            res = {'code': -1, 'msg': '请求数据错误', 'data': scheduleForm.errors}
+        return HttpResponse(json.dumps(res), content_type='application/json')
 
 # class PatchViewSet(viewsets.ModelViewSet):
 #     queryset = Patch.objects.all()
 #     serializer_class = PatchSerializer
 
 
-class UserViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    查看、编辑用户的界面
-    """
-    queryset = User.objects.all().order_by('-date_joined')
-    serializer_class = UserSerializer
-
-
-class GroupViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    查看、编辑组的界面
-    """
-    queryset = Group.objects.all()
-    serializer_class = GroupSerializer
+# class UserViewSet(viewsets.ReadOnlyModelViewSet):
+#     """
+#     查看、编辑用户的界面
+#     """
+#     queryset = User.objects.all().order_by('-date_joined')
+#     serializer_class = UserSerializer
+#
+#
+# class GroupViewSet(viewsets.ReadOnlyModelViewSet):
+#     """
+#     查看、编辑组的界面
+#     """
+#     queryset = Group.objects.all()
+#     serializer_class = GroupSerializer
