@@ -3,7 +3,7 @@
 import re
 import os
 import oss2
-from rect.models import ORGGroup, SliceType, Batch, PageRect, Rect, OPage
+from rect.models import ORGGroup, SliceType, Batch, PageRect, Rect, OPage, TaskStatus, CCTask, ClassifyTask, PageTask
 import zipfile
 import json
 from django.db import transaction
@@ -184,10 +184,11 @@ class HuaNanBatchParser(BatchParser):
 
             pageRect = PageRect()
             pageRect.batch = self.batch
-            try:
-                pageRect.page = OPage.objects.get(code=imgPath)
-            except ObjectDoesNotExist:
-                pass
+            # try:
+            #     pageRect.page = OPage.objects.get(code=imgPath)
+            # except ObjectDoesNotExist:
+            #     pass
+            pageRect.code = imgPath
             pageRect.column_count = columnNum
             pageRect.line_count = maxLineCount
             pageRect.rect_set = json.dumps(pageRectSetList, ensure_ascii=False)
@@ -220,17 +221,19 @@ class AllocateTask(object):
 class CCAllocateTask(AllocateTask):
 
     def allocate(self):
-        CCTask = ContentType.objects.get(app_label='rect', model='cctask').model_class()
+        #CCTask = ContentType.objects.get(app_label='rect', model='cctask').model_class()
         batch = self.schedule.batch
-        json_data = json.parser(self.schedule.desc)
+        #json_data = json.parse(self.schedule.desc)
+        #import pdb;pdb.set_trace()
+        json_data = json.loads(self.schedule.desc)
         count = json_data['block_size']
-        cc_threshold = json_data['cc_val']
+        cc_threshold = json_data['cc_threshold']
         rect_set = []
         task_set = []
         for rect in Rect.objects.filter(batch=batch, cc__lte=cc_threshold):
-            rect_set.append(rect.id)
+            rect_set.append(rect.id.hex)
             if len(rect_set) == count:
-                task = CCTask(schedule=self.schedule, ttype=SliceType.CC, count=count,
+                task = CCTask(schedule=self.schedule, ttype=SliceType.CC, count=count, status=TaskStatus.NOT_GOT,
                               rect_set=CCTask.serialize_set(rect_set), cc_threshold=rect.cc)
                 rect_set.clear()
                 task_set.append(task)
@@ -245,9 +248,9 @@ class CCAllocateTask(AllocateTask):
 class ClassifyAllocateTask(AllocateTask):
 
     def allocate(self):
-        ClassifyTask = ContentType.objects.get(app_label='rect', model='classifytask').model_class()
+        #ClassifyTask = ContentType.objects.get(app_label='rect', model='classifytask').model_class()
         batch = self.schedule.batch
-        json_data = json.parser(self.schedule.desc)
+        json_data = json.loads(self.schedule.desc)
         count = json_data['block_size']
         target_char_set = json_data['scope']
         rect_set = []
@@ -256,11 +259,11 @@ class ClassifyAllocateTask(AllocateTask):
         if target_char_set == "all":
            query_set = Rect.objects.filter(batch=batch).order_by('word')
         else:
-            target_char_set = target_char_set.split(',')
-            query_set = Rect.objects.filter(pk__in=target_char_set).order_by('word')
+            #target_char_set = target_char_set.split(',')
+            query_set = Rect.objects.filter(word__in=target_char_set).order_by('word')
 
         for rect in query_set:
-            rect_set.append(rect.id)
+            rect_set.append(rect.id.hex)
             word_set[rect.word] = 1
 
             if len(rect_set) == count:
@@ -281,21 +284,21 @@ class ClassifyAllocateTask(AllocateTask):
 class PerpageAllocateTask(AllocateTask):
 
     def allocate(self):
-        PageTask = ContentType.objects.get(app_label='rect', model='pagetask').model_class()
+        #PageTask = ContentType.objects.get(app_label='rect', model='pagetask').model_class()
         batch = self.schedule.batch
-        json_data = json.parser(self.schedule.desc)
+        json_data = json.loads(self.schedule.desc)
         count = json_data['block_size']
         page_header = json_data['page_header']
         if page_header:
             page_regex = r'^'+ page_header + r'.*'
-            query_set = PageRect.objects.filter(batch=batch, name__iregex=page_regex)
+            query_set = PageRect.objects.filter(batch=batch, code__iregex=page_regex)
         else:
             query_set = PageRect.objects.filter(batch=batch)
 
         page_set = []
         task_set = []
         for page in query_set:
-            page_set.append(page.id)
+            page_set.append(page.id.hex)
             if len(page_set) == count:
                 task = PageTask(schedule=self.schedule, ttype=SliceType.PPAGE, count=count,
                               page_set=PageTask.serialize_set(page_set))
@@ -309,13 +312,13 @@ class PerpageAllocateTask(AllocateTask):
 
 
 def allocateTasks(schedule):
-    org = int(schedule.org)
+    type = int(schedule.type)
     allocator = None
-    if org == SliceType.CC: # 置信度
+    if type == SliceType.CC: # 置信度
         allocator = CCAllocateTask(schedule)
-    elif org == SliceType.CLASSIFY: # 聚类
+    elif type == SliceType.CLASSIFY: # 聚类
         allocator = ClassifyAllocateTask(schedule)
-    elif org == SliceType.PPAGE: # 逐页浏览
+    elif type == SliceType.PPAGE: # 逐页浏览
         allocator = PerpageAllocateTask(schedule)
     if allocator:
         allocator.allocate()

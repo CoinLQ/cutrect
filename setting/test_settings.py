@@ -140,7 +140,7 @@ WSGI_APPLICATION = 'setting.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'cutrect',
+        'NAME': 'rect',
         'USER': 'root',
         'PASSWORD': 'root',
         'HOST': 'localhost',

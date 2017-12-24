@@ -50,12 +50,12 @@ class ScheduleStatus:
 
 
 class TaskStatus:
-    NOT_GOT = -1
-    GOT_NO_START = 0
-    HANDLING = 1
-    EXPIRED = 2
-    DISCARD = 3
-    COMPLETED = 4
+    NOT_GOT = 0
+    GOT_NO_START = 1
+    HANDLING = 2
+    EXPIRED = 3
+    DISCARD = 4
+    COMPLETED = 5
     CHOICES = (
         (NOT_GOT, u'未领取'),
         (GOT_NO_START, u'已领取'),
@@ -97,8 +97,9 @@ class OPage(models.Model):
 
 class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    page = models.ForeignKey(OPage, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
-                              db_index=True, verbose_name=u'关联页信息')
+    # page = models.ForeignKey(OPage, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
+    #                           db_index=True, verbose_name=u'关联页信息')
+    code = models.CharField(max_length=64, unique=True, null=True, verbose_name=u'关联页ID')
     batch = models.ForeignKey(Batch, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
                               db_index=True, verbose_name=u'批次') #todo 1204 后续考虑用级联删除.
     line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数')
@@ -154,6 +155,8 @@ class Rect(models.Model):
     ts = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=4, default='', db_index=True)
     #ctxt = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=12, default='') #todo 1205 考虑是否必要.
 
+    batch = models.ForeignKey(Batch, null=True, related_name='rects', on_delete=models.SET_NULL,
+                              db_index=True, verbose_name=u'批次')
     page_rect = models.ForeignKey(PageRect, null=True, blank=True, related_name='rects', on_delete=models.SET_NULL,
                                   verbose_name=u'源-切分页') #todo 1204 后续考虑用级联删除.
     inset = models.FileField(null=True, blank=True, help_text=u'嵌入临时截图',
@@ -197,7 +200,7 @@ class Schedule(models.Model):
         default=SliceType.PPAGE,
         verbose_name=u'切分方式',
     )
-    desc = models.TextField(null=True, blank=True, verbose_name=u'计划格式化描述')
+    desc = models.CharField(max_length=256, null=True, blank=True, verbose_name=u'计划格式化描述')
     user_group = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name=u'分配组') #todo 1204 需要跟用户系统组对接.
     status = models.PositiveSmallIntegerField(
         db_index=True,
@@ -249,7 +252,7 @@ class Task(models.Model):
 
     @classmethod
     def serialize_set(cls, dataset):
-        return ".".join(dataset)
+        return ";".join(dataset)
 
     class Meta:
         abstract = True

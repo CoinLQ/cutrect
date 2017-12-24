@@ -28,10 +28,11 @@ def parseBatchToPageRect(batchId=''):
 @receiver(models.signals.post_save, sender=Schedule)
 def after_create_schedule(sender, instance, created, **kwargs):
     if created:
-        pass
-        # allocateTasksBySchedule.delay(batchId=instance.id)
+        allocateTasksBySchedule(scheduleId=instance.id) #todo 1223 调试暂时不异步执行.
+        #allocateTasksBySchedule.delay(scheduleId=instance.id)
 
 
+@shared_task
 def allocateTasksBySchedule(scheduleId=''):
     if scheduleId:
         schedule = Schedule.objects.get(id=scheduleId)

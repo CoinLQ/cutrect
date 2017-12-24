@@ -11,7 +11,7 @@ import json
 
 
 from rect.serializers import *
-from rect.forms import ScheduleForm
+from rect.forms import ScheduleForm, BatchModelForm
 from utils.mixin_utils import LoginRequiredMixin
 
 class BatchViewSet(viewsets.ReadOnlyModelViewSet):
@@ -77,7 +77,28 @@ class CreateScheduleView(View):
             res = {'code': -1, 'msg': '请求数据错误', 'data': scheduleForm.errors}
         return HttpResponse(json.dumps(res), content_type='application/json')
 
-# class PatchViewSet(viewsets.ModelViewSet):
+# class CreateScheduleView(LoginRequiredMixin, View):
+class UploadBatchView(View):
+
+    @csrf_exempt
+    def post(self, request):
+        batchModelForm = BatchModelForm(request.POST)
+
+        if batchModelForm.is_valid():
+            # 创建计划信息.
+            batch = batchModelForm.save()
+            bs = BatchSerializer(batch)
+            data = JSONRenderer().render(bs.data)
+
+            res = {'code': 0, 'msg': 'success'}
+            # todo 1223 异步去分配任务.
+        else:
+            res = {'code': -1, 'msg': '请求数据错误', 'data': batchModelForm.errors}
+        return HttpResponse(json.dumps(res), content_type='application/json')
+
+
+
+                # class PatchViewSet(viewsets.ModelViewSet):
 #     queryset = Patch.objects.all()
 #     serializer_class = PatchSerializer
 

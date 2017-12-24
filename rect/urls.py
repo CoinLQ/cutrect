@@ -8,7 +8,7 @@ from django.views.generic import TemplateView
 from django.views.static import serve #处理静态文件
 from rest_framework import routers
 from rect.views import BatchViewSet, PageRectViewSet, RectViewSet, ScheduleViewSet, CCTaskViewSet, ClassifyTaskViewSet, PageTaskViewSet
-from rect.views import CreateScheduleView
+from rect.views import CreateScheduleView, UploadBatchView
 
 import xadmin
 # xadmin.autodiscover()
@@ -29,7 +29,8 @@ router.register(r'pagetask', PageTaskViewSet)
 
 urlpatterns = [
     url(r'^api', include(router.urls)),
-    url(r'^create_schedule', CreateScheduleView.as_view(), name='create_schedule')
+    url(r'^create_schedule', CreateScheduleView.as_view(), name='create_schedule'),
+    url(r'^upload_batch', UploadBatchView.as_view(), name='upload_batch')
 ]
 
 
