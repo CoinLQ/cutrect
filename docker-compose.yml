@@ -6,9 +6,9 @@ mysql-tripitaka:
     - ./conf/mysql/:/etc/mysql/conf.d
     - ./data/log/:/var/log/mysql
   ports:
-    - "3306:3306"
+    - "3307:3307"
   environment:
-    - MYSQL_DATABASE=lqtripitaka
+    - MYSQL_DATABASE=cutrect
     - MYSQL_ROOT_PASSWORD=root
 
 redis-tripitaka:
@@ -38,9 +38,9 @@ web_tripitaka:
   links:
     - mysql-tripitaka:mysql_tripitaka
   command: uwsgi -s :8000 -w setting.wsgi -p 3
-  depends_on:
-    - mysql-tripitaka
-    - redis-tripitaka
+#  depends_on:
+#    - mysql-tripitaka
+#    - redis-tripitaka
 
 
 
