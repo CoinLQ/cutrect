@@ -45,7 +45,7 @@ PROJECT_ROOT = os.path.join(os.path.realpath(os.path.dirname(__file__)), os.pard
 SECRET_KEY = '2dx3sbj0#=4k$xu=8h52to&a2zia%%lr(w2h4wf$zb(ux6v9az'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 # 生产环境不开启跨域False https://zhuanlan.zhihu.com/p/25080236

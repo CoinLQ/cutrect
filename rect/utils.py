@@ -7,6 +7,7 @@ from rect.models import ORGGroup, SliceType, Batch, PageRect, Rect, OPage, TaskS
 import zipfile
 import json
 from django.db import transaction
+from django.db.utils import DataError
 from setting.settings import MEDIA_ROOT
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
@@ -117,7 +118,20 @@ class BatchParser(object):
             rect.batch = self.batch
             if not bulk: Rect.objects.create(rect)
         if bulk:
-            return Rect.objects.bulk_create(rectModelList)
+            try:
+                return Rect.objects.bulk_create(rectModelList)
+            except DataError as err:
+                print(err)
+                import pdb;pdb.set_trace()
+
+    def parsePageCode(self, pageName):
+        pass
+
+
+    def repair0(self, val, maxLength):
+        if val and len(val) < maxLength:
+            val = '0' * (maxLength - len(val)) + val
+        return val
 
 
 class HuaNanBatchParser(BatchParser):
@@ -125,6 +139,17 @@ class HuaNanBatchParser(BatchParser):
     separate = re.compile(';')
     rectPattern = re.compile(r'(?P<x>\d+),(?P<y>\d+),(?P<w>\d+),(?P<h>\d+),(?P<cc>[0-9]+\.[0-9]+)')
     wordPattern = re.compile(r'(?P<word>[\x80-\xff]+)')
+    # 0001_001_26_01.jpg => GLZ_S00001_R001_T0001
+    pageCodePattern = re.compile(r'''
+        (?P<series>[A-Z]+_)?    #藏经版本编号
+        (?P<sutra>\d{1,5})      #经编号
+        _
+        (?P<roll>\d{1,3})       #卷编号
+        _
+        ((?P<pageCountInRoll>\d{1,4})_)?    #每一卷页的数量
+        (?P<page>\d{1,4})       #页编号
+        (\.(?P<pageImgType>\w{1,6}))?   #图片类型
+        ''', re.VERBOSE)
 
     def parse(self):
         upload_file = self.batch.upload
@@ -140,14 +165,22 @@ class HuaNanBatchParser(BatchParser):
                         except UnicodeDecodeError as error:
                             print(error) #todo log记录未解析的页数据.
 
+    def parsePageCode(self, pageName):
+        cm = self.pageCodePattern.match(pageName)
+        if cm:
+            series = cm.group('series') if cm.group('series') else self.batch.series
+            sutra = 'S' + self.repair0(cm.group('sutra'), 5)
+            roll = 'R' + self.repair0(cm.group('roll'), 3)
+            page = 'T' + self.repair0(cm.group('page'), 4)
+            return series + '_' + sutra + '_' + roll + '_' + page
+        return ""
+
     def parsePage(self, data):
         lineMatcher = self.linePattern.match(data)
         if lineMatcher:
             img = lineMatcher.group('pageImg')
-            imgPathObj = name_to_imgPath(img)
-            if not 'series' in imgPathObj or not imgPathObj['series'] : imgPathObj['series'] = self.batch.series
-            imgPath = imgPath_to_name(imgPathObj)
-            # if not imgPath or not is_img_exist(imgPath):
+            pageCode = self.parsePageCode(img)
+            # if not pageCode or not is_img_exist(pageCode):
             #     self.notFundImgList.append(img)
             #     return []
 
@@ -188,7 +221,7 @@ class HuaNanBatchParser(BatchParser):
             #     pageRect.page = OPage.objects.get(code=imgPath)
             # except ObjectDoesNotExist:
             #     pass
-            pageRect.code = imgPath
+            pageRect.code = pageCode
             pageRect.column_count = columnNum
             pageRect.line_count = maxLineCount
             pageRect.rect_set = json.dumps(pageRectSetList, ensure_ascii=False)

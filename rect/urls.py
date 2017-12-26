@@ -28,7 +28,7 @@ router.register(r'pagetask', PageTaskViewSet)
 
 
 urlpatterns = [
-    url(r'^api', include(router.urls)),
+    url(r'^api/', include(router.urls)),
     url(r'^create_schedule', CreateScheduleView.as_view(), name='create_schedule'),
     url(r'^upload_batch', UploadBatchView.as_view(), name='upload_batch')
 ]

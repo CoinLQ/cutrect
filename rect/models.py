@@ -89,17 +89,12 @@ class Batch(models.Model):
         verbose_name_plural = u"批次管理"
         ordering = ('submit_date', 'name')
 
-class OPage(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.CharField(max_length=64, unique=True, null=True, verbose_name=u'关联页ID')
-    s3_inset = models.FileField(blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
-                                storage='storages.backends.s3boto.S3BotoStorage')
 
 class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # page = models.ForeignKey(OPage, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
     #                           db_index=True, verbose_name=u'关联页信息')
-    code = models.CharField(max_length=64, unique=True, null=True, verbose_name=u'关联页ID')
+    code = models.CharField(max_length=64, null=True, verbose_name=u'关联页ID')
     batch = models.ForeignKey(Batch, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
                               db_index=True, verbose_name=u'批次') #todo 1204 后续考虑用级联删除.
     line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数')
@@ -116,21 +111,6 @@ class PageRect(models.Model):
         ordering = ('create_date',)
 
 
-# class AbstractRect(object):
-#     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
-#     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
-#     w = models.PositiveSmallIntegerField(verbose_name=u'宽度', default=1,
-#                                          validators=[MinValueValidator(1), MaxValueValidator(300)])
-#     h = models.PositiveSmallIntegerField(verbose_name=u'高度', default=1,
-#                                          validators=[MinValueValidator(1), MaxValueValidator(300)])
-#     ln = models.PositiveSmallIntegerField(verbose_name=u'行号', default=0)  # 旋转90度观想，行列概念
-#     cn = models.PositiveSmallIntegerField(verbose_name=u'列号', default=0)
-#     cc = models.FloatField(verbose_name=u'置信度', default=1, db_index=True)
-#     word = models.CharField(verbose_name=u'汉字', max_length=4, default='', db_index=True)
-#     wcc = models.FloatField(verbose_name=u'文字置信度', default=1, db_index=True)
-#     ts = models.CharField(verbose_name=u'标字', max_length=4, default='', db_index=True)
-#     ctxt = models.CharField(verbose_name=u'标字', max_length=12, default='') #todo 1205 考虑是否必要.
-
 class RectStatus(object):
     NORMAL = 256
     CHOICES = (
@@ -143,10 +123,8 @@ class Rect(models.Model):
     status = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'类型', default=0) #todo 1015 有什么用途了
     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
-    w = models.PositiveSmallIntegerField(verbose_name=u'宽度', default=1,
-                                         validators=[MinValueValidator(1), MaxValueValidator(300)])
-    h = models.PositiveSmallIntegerField(verbose_name=u'高度', default=1,
-                                         validators=[MinValueValidator(1), MaxValueValidator(300)])
+    w = models.PositiveSmallIntegerField(verbose_name=u'宽度', default=1) #, validators=[MinValueValidator(1), MaxValueValidator(300)])
+    h = models.PositiveSmallIntegerField(verbose_name=u'高度', default=1) #, validators=[MinValueValidator(1), MaxValueValidator(300)])
     ln = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 旋转90度观想，行列概念
     cn = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'列号', default=0)
     cc = models.FloatField(null=True, blank=True, verbose_name=u'切分置信度', default=1, db_index=True)
@@ -330,6 +308,32 @@ class PageTask(Task):
 #         verbose_name = u"Patch"
 #         verbose_name_plural = u"Patch管理"
 #         ordering = ('schedule', "task", "word")
+
+
+class OPage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'原始页编码')
+    s3_inset = models.FileField(blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
+                                storage='storages.backends.s3boto.S3BotoStorage')
+
+    class Meta:
+        verbose_name = u"原始页"
+        verbose_name_plural = u"原始页管理"
+        ordering = ('code', )
+
+
+class OColumn(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    opage = models.ForeignKey(OPage, related_name='ocolumns', on_delete=models.CASCADE,
+                              db_index=True, verbose_name=u'原始页')
+    code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'页的切列编码')
+    location = models.CharField(max_length=64, null=True, verbose_name='位置坐标参数')
+    s3_inset = models.FileField(blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
+                                storage='storages.backends.s3boto.S3BotoStorage')
+    class Meta:
+        verbose_name = u"原始页"
+        verbose_name_plural = u"原始页管理"
+        ordering = ('code', )
 
 
 # class AccessRecord(models.Model):
