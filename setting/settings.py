@@ -176,10 +176,24 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated', ),
     'PAGE_SIZE': 10,
     'DEFAULT_AUTHENTICATION_CLASSES': (
-    'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+    'jwt_auth.authentication.JWTAuthentication',
     )
 
 }
+
+JWT_AUTH = {
+    'JWT_RESPONSE_PAYLOAD_HANDLER':
+        'jwt_auth.serializers.jwt_response_payload_handler',
+    'JWT_PAYLOAD_HANDLER': 'jwt_auth.serializers.jwt_payload_handler',
+}
+
+CORS_ORIGIN_WHITELIST = (
+    'lqdzj.cn',
+    'localhost:8080',
+    '127.0.0.1:8000'
+)
+
+CORS_ORIGIN_REGEX_WHITELIST = (r'^(https?://)?(\w+\.)?lqdzj\.cn$', )
 
 TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 
