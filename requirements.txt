@@ -31,9 +31,10 @@ numpy==1.13.1
 django-redis==4.6
 codecov==2.0.9
 
+django-cors-headers==2.1.0
 django-template-debug
 django-material
 celery==4.1.0
 django-celery-beat==1.1.0
 django-celery-results==1.0.1
-jwt_auth
+#jwt_auth==0.2.5

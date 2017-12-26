@@ -6,23 +6,24 @@ mysql-tripitaka:
     - ./conf/mysql/:/etc/mysql/conf.d
     - ./data/log/:/var/log/mysql
   ports:
-    - "3306:3306"
+    - "3307:3307"
   environment:
-    - MYSQL_DATABASE=lqtripitaka
+    - MYSQL_DATABASE=cutrect
     - MYSQL_ROOT_PASSWORD=root
 
 redis-tripitaka:
   image: redis:latest
   ports:
-    - "6379:6379"
+    - "6378:6378"
 
 nginx-tripitaka:
   restart: always
   image: nginx
   ports:
-    - "80:80"
+    - "8028:8028"
   volumes:
     - ./conf/nginx/tripitaka_nginx.conf:/etc/nginx/conf.d/tripitaka_nginx.conf
+    - ./static/:/cutrect/static/
   volumes_from:
     - web_tripitaka
   links:
@@ -35,12 +36,13 @@ web_tripitaka:
     - "8000:8000"
   volumes:
     - .:/cutrect
+    - ./../Z:/cutrect/frontend
   links:
     - mysql-tripitaka:mysql_tripitaka
   command: uwsgi -s :8000 -w setting.wsgi -p 3
-  depends_on:
-    - mysql-tripitaka
-    - redis-tripitaka
+  #depends_on:
+  #  - mysql-tripitaka
+  #  - redis-tripitaka
 
 
 
