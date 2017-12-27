@@ -96,7 +96,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    #'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -112,7 +112,7 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             os.path.join(PROJECT_ROOT, "templates"),
-            #os.path.join(PROJECT_ROOT, "frontend/dist"),
+            os.path.join(PROJECT_ROOT, "frontend/build"),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -297,7 +297,7 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 # )
 # Add for vuejs
 STATICFILES_DIRS = [
-    #os.path.join(PROJECT_ROOT, 'frontend/dist/static'),
+    os.path.join(PROJECT_ROOT, 'frontend/build'),
 ]
 
 # List of finder classes that know how to find static files in
