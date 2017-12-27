@@ -31,7 +31,7 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^xadmin/', include(xadmin.site.urls)),
     url(r'^api/', include('api.urls')),
-    url(r'^rect/', include('rect.urls')),
+    #url(r'^rect/', include('rect.urls')), #todo 1227 转移到/api/rect/下统一管理.
     url(r'^auth/', include("jwt_auth.urls", namespace="api-auth")),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]

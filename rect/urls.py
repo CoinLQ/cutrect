@@ -26,7 +26,7 @@ router.register(r'cctask', CCTaskViewSet)
 router.register(r'classifytask', ClassifyTaskViewSet)
 router.register(r'pagetask', PageTaskViewSet)
 
-
+#todo 1227 转移到/api/rect/下统一管理.
 urlpatterns = [
     url(r'^api/', include(router.urls)),
     url(r'^create_schedule', CreateScheduleView.as_view(), name='create_schedule'),
