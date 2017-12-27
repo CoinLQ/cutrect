@@ -5,7 +5,7 @@ from django.conf.urls import url, include
 
 from rest_framework import routers
 
-from rect.views import BatchViewSet, PageRectViewSet, RectViewSet, ScheduleViewSet, CCTaskViewSet, ClassifyTaskViewSet, PageTaskViewSet
+from rect.views import BatchViewSet, PageRectViewSet, RectViewSet, ScheduleViewSet, CCTaskViewSet, ClassifyTaskViewSet, PageTaskViewSet, OPageViewSet, OColumnViewSet
 from rect.views import CreateScheduleView, UploadBatchView
 
 
@@ -20,6 +20,8 @@ rectRouter.register(r'schedule', ScheduleViewSet)
 rectRouter.register(r'cctask', CCTaskViewSet)
 rectRouter.register(r'classifytask', ClassifyTaskViewSet)
 rectRouter.register(r'pagetask', PageTaskViewSet)
+rectRouter.register(r'opage', OPageViewSet)
+rectRouter.register(r'ocolumn', OColumnViewSet)
 
 
 urlpatterns = [

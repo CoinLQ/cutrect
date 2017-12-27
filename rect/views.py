@@ -14,6 +14,17 @@ from rect.serializers import *
 from rect.forms import ScheduleForm, BatchModelForm
 from utils.mixin_utils import LoginRequiredMixin
 
+
+class OColumnViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = OColumn.objects.all()
+    serializer_class = OColumnSerializer
+
+
+class OPageViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = OPage.objects.all()
+    serializer_class = OPageSerializer
+
+
 class BatchViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Batch.objects.all()
     serializer_class = BatchSerializer

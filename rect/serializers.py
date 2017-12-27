@@ -79,6 +79,16 @@ class ScheduleSerializer(serializers.ModelSerializer):
         model = Schedule
         fields = '__all__'
 
+class OColumnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OColumn
+        fields = '__all__'
+
+class OPageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OPage
+        fields = '__all__'
+
 
 # class PatchSerializer(serializers.ModelSerializer):
 #     class Meta:
