@@ -137,10 +137,10 @@ class Rect(models.Model):
                               db_index=True, verbose_name=u'批次')
     page_rect = models.ForeignKey(PageRect, null=True, blank=True, related_name='rects', on_delete=models.SET_NULL,
                                   verbose_name=u'源-切分页') #todo 1204 后续考虑用级联删除.
-    inset = models.FileField(null=True, blank=True, help_text=u'嵌入临时截图',
+    inset = models.FileField(max_length=256, null=True, blank=True, help_text=u'嵌入临时截图',
                              upload_to='core.DBPicture/bytes/filename/mimetype',
                              storage=db_storage)
-    s3_inset = models.FileField(blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
+    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
                                 storage='storages.backends.s3boto.S3BotoStorage')
 
     def __str__(self):
@@ -313,7 +313,7 @@ class PageTask(Task):
 class OPage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'原始页编码')
-    s3_inset = models.FileField(blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
+    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
                                 storage='storages.backends.s3boto.S3BotoStorage')
 
     class Meta:
@@ -328,7 +328,7 @@ class OColumn(models.Model):
                               db_index=True, verbose_name=u'原始页')
     code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'页的切列编码')
     location = models.CharField(max_length=64, null=True, verbose_name='位置坐标参数')
-    s3_inset = models.FileField(blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
+    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
                                 storage='storages.backends.s3boto.S3BotoStorage')
     class Meta:
         verbose_name = u"原始页"
