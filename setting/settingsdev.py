@@ -35,8 +35,8 @@ DATABASES = {
         'NAME': 'cutrect',
         'USER': 'root',
         'PASSWORD': 'root',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'HOST': '192.168.2.10',
+        'PORT': '3307',
         'OPTIONS': {'charset': 'utf8mb4', 'init_command': 'SET default_storage_engine=InnoDB'}
     },
 }

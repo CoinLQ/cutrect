@@ -6,8 +6,6 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.views.generic import TemplateView
 from django.views.static import serve #处理静态文件
-from rest_framework import routers
-from rect.views import BatchViewSet, PageRectViewSet, RectViewSet, ScheduleViewSet, CCTaskViewSet, ClassifyTaskViewSet, PageTaskViewSet, OPageViewSet, OColumnViewSet
 from rect.views import CreateScheduleView, UploadBatchView
 
 import xadmin
@@ -17,21 +15,11 @@ import xadmin
 from xadmin.plugins import xversion
 xversion.register_models()
 
-router = routers.DefaultRouter()
-router.register(r'batch', BatchViewSet)
-router.register(r'pagerect', PageRectViewSet)
-router.register(r'rect', RectViewSet)
-router.register(r'schedule', ScheduleViewSet)
-router.register(r'cctask', CCTaskViewSet)
-router.register(r'classifytask', ClassifyTaskViewSet)
-router.register(r'pagetask', PageTaskViewSet)
-router.register(r'opage', OPageViewSet)
-router.register(r'ocolumn', OColumnViewSet)
 
 
-#todo 1227 转移到/api/rect/下统一管理.
+
 urlpatterns = [
-    url(r'^api/', include(router.urls)),
+
     url(r'^create_schedule', CreateScheduleView.as_view(), name='create_schedule'),
     url(r'^upload_batch', UploadBatchView.as_view(), name='upload_batch')
 ]

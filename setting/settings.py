@@ -81,12 +81,10 @@ INSTALLED_APPS = [
     'reversion',
 
     'django_extensions',
+    'corsheaders',
     'rect',
     'storages',
     'celery',
-    #'django_celery_beat',
-
-    #"djcelery",
     #'kombu.transport.django', #http://blog.csdn.net/samed/article/details/50598371
 
 ]
@@ -96,7 +94,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    #'django.middleware.csrf.CsrfViewMiddleware',
+#    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -173,7 +171,7 @@ DATABASES = {
 # ]
 
 REST_FRAMEWORK = {
-    # 'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated', ),
+    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated', ),
     'PAGE_SIZE': 10,
     'DEFAULT_AUTHENTICATION_CLASSES': (
     'jwt_auth.authentication.JWTAuthentication',
@@ -310,6 +308,21 @@ STATICFILES_FINDERS = (
 
 XADMIN_TITLE = _(u"龙泉大藏经切分平台")
 XADMIN_FOOTER_TITLE = _(u"北京 龙泉寺-AIITC.inc")
+
+# Redis Cache Settings
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': '127.0.0.1:6379',
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    },
+}
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+# Redis Cache Settings end
 
 #django使用celery定时任务，使用redis和supervisor
 # http://blog.csdn.net/win_turn/article/details/60658525

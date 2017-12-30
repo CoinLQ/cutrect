@@ -92,9 +92,9 @@ class ScheduleAdmin(object):
     remain_task_count.allow_tags = True
     remain_task_count.is_column = True
 
-    list_display = ("name", "batch", "type", 'remain_task_count', "user_group", "status", "end_date", 'create_date')
+    list_display = ("name", "batch", "type", 'remain_task_count', "status", "end_date", 'create_date')
     list_display_links = ("name", "status")
-    list_filter = ("batch", 'type', 'user_group', 'status', 'end_date', 'create_date')
+    list_filter = ("batch", 'type', 'status', 'end_date', 'create_date')
     search_fields = ["name" ]
     date_hierarchy = 'end_date'
     relfield_style = "fk-select"

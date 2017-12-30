@@ -105,3 +105,4 @@ setting/settings_local.py
 test/
 static/
 *.sqlite
+data/
