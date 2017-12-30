@@ -68,6 +68,31 @@ class TaskStatus:
     remain_status = [NOT_GOT, GOT_NO_START, HANDLING]
 
 
+class OPage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'原始页编码')
+    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
+                                storage='storages.backends.s3boto.S3BotoStorage')
+
+    class Meta:
+        verbose_name = u"原始页"
+        verbose_name_plural = u"原始页管理"
+        ordering = ('code', )
+
+
+class OColumn(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    opage = models.ForeignKey(OPage, related_name='ocolumns', on_delete=models.CASCADE,
+                              db_index=True, verbose_name=u'原始页')
+    code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'页的切列编码')
+    location = models.CharField(max_length=64, null=True, verbose_name='位置坐标参数')
+    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
+                                storage='storages.backends.s3boto.S3BotoStorage')
+    class Meta:
+        verbose_name = u"原始页"
+        verbose_name_plural = u"原始页管理"
+        ordering = ('code', )
+        
 class Batch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=64, verbose_name=u'批次名')
@@ -92,11 +117,11 @@ class Batch(models.Model):
 
 class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # page = models.ForeignKey(OPage, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
-    #                           db_index=True, verbose_name=u'关联页信息')
-    code = models.CharField(max_length=64, null=True, verbose_name=u'关联页ID')
+    page = models.ForeignKey(OPage, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
+                              db_index=True, verbose_name=u'关联源页信息')
+    code = models.CharField(max_length=64, null=True, verbose_name=u'关联源页CODE') # Eg. GLZ_K1000_S0001_V0001_P0001
     batch = models.ForeignKey(Batch, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
-                              db_index=True, verbose_name=u'批次') #todo 1204 后续考虑用级联删除.
+                              db_index=True, verbose_name=u'批次')  # 批次删除，暂不删除切分数据
     line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数')
     column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数')
     rect_set = models.TextField(blank=True, null=True, verbose_name=u'切字块数据集')
@@ -106,8 +131,8 @@ class PageRect(models.Model):
         return str(self.id)
 
     class Meta:
-        verbose_name = u"源-切分页"
-        verbose_name_plural = u"源-切分页管理"
+        verbose_name = u"源页切分集"
+        verbose_name_plural = u"源页切分集管理"
         ordering = ('create_date',)
 
 
@@ -119,7 +144,6 @@ class RectStatus(object):
 
 class Rect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
     status = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'类型', default=0) #todo 1015 有什么用途了
     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
@@ -136,7 +160,7 @@ class Rect(models.Model):
     batch = models.ForeignKey(Batch, null=True, related_name='rects', on_delete=models.SET_NULL,
                               db_index=True, verbose_name=u'批次')
     page_rect = models.ForeignKey(PageRect, null=True, blank=True, related_name='rects', on_delete=models.SET_NULL,
-                                  verbose_name=u'源-切分页') #todo 1204 后续考虑用级联删除.
+                                  verbose_name=u'源页切分集') # 数据重要不级联删除，使用业务逻辑过滤删除.
     inset = models.FileField(max_length=256, null=True, blank=True, help_text=u'嵌入临时截图',
                              upload_to='core.DBPicture/bytes/filename/mimetype',
                              storage=db_storage)
@@ -179,7 +203,6 @@ class Schedule(models.Model):
         verbose_name=u'切分方式',
     )
     desc = models.CharField(max_length=256, null=True, blank=True, verbose_name=u'计划格式化描述')
-    user_group = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name=u'分配组') #todo 1204 需要跟用户系统组对接.
     status = models.PositiveSmallIntegerField(
         db_index=True,
         null=True,
@@ -208,8 +231,6 @@ class Task(models.Model):
     '''
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     number = models.CharField(null=True, blank=True, max_length=64, verbose_name='任务编号')
-    # schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='tasks', on_delete=models.SET_NULL,
-    #                              db_index=True, verbose_name=u'切分计划') #todo 1205 后续考虑级联删除.
     ttype = models.PositiveSmallIntegerField(
         db_index=True,
         choices=SliceType.CHOICES,
@@ -310,30 +331,6 @@ class PageTask(Task):
 #         ordering = ('schedule', "task", "word")
 
 
-class OPage(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'原始页编码')
-    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
-                                storage='storages.backends.s3boto.S3BotoStorage')
-
-    class Meta:
-        verbose_name = u"原始页"
-        verbose_name_plural = u"原始页管理"
-        ordering = ('code', )
-
-
-class OColumn(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    opage = models.ForeignKey(OPage, related_name='ocolumns', on_delete=models.CASCADE,
-                              db_index=True, verbose_name=u'原始页')
-    code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'页的切列编码')
-    location = models.CharField(max_length=64, null=True, verbose_name='位置坐标参数')
-    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
-                                storage='storages.backends.s3boto.S3BotoStorage')
-    class Meta:
-        verbose_name = u"原始页"
-        verbose_name_plural = u"原始页管理"
-        ordering = ('code', )
 
 
 # class AccessRecord(models.Model):
