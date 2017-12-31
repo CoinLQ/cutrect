@@ -201,13 +201,13 @@ class HuaNanBatchParser(BatchParser):
                 if rectIter:
                     for rect in rectIter:
                         rectDict = rect.groupdict()
-
                         word = txtColumn[lineNum]
                         if word: rectDict['word'] = word
                         lineNum += 1 #按人类习惯用法行号以1为开始.
                         maxLineCount = max(lineNum, maxLineCount)
                         rectDict['ln'] = lineNum
-                        rectDict['cn'] = columnNum
+                        rectDict['cn'] = len(rectColumnArr) - columnNum + 1
+                        rectDict['x'] = rectDict['x']/2
                         rectDict['w'] = int(rectDict['w']) - int(rectDict['x'])
                         rectDict['h'] = int(rectDict['h']) - int(rectDict['y'])
                         rectDict['pcode'] = pageCode # pageCode用于字块找出字图和字列图
