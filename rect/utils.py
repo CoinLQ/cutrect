@@ -207,8 +207,8 @@ class HuaNanBatchParser(BatchParser):
                         maxLineCount = max(lineNum, maxLineCount)
                         rectDict['ln'] = lineNum
                         rectDict['cn'] = len(rectColumnArr) - columnNum + 1
+                        rectDict['w'] = (int(rectDict['w']) - int(rectDict['x']))/2
                         rectDict['x'] = rectDict['x']/2
-                        rectDict['w'] = int(rectDict['w']) - int(rectDict['x'])
                         rectDict['h'] = int(rectDict['h']) - int(rectDict['y'])
                         rectDict['pcode'] = pageCode # pageCode用于字块找出字图和字列图
                         pageRectSetList.append(rectDict)
