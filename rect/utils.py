@@ -335,7 +335,7 @@ class PerpageAllocateTask(AllocateTask):
         page_set = []
         task_set = []
 
-        for no, rect in enumerate(query_set, start=1):
+        for no, page in enumerate(query_set, start=1):
             page_set.append(page.id.hex)
             if len(page_set) == count:
                 task_no = "%s_%07X" % (self.schedule.name, int(no/count))
