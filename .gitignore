@@ -100,7 +100,9 @@ core/migrations
 .idea/*
 celerybeat-schedule.db
 celerybeat.pid
+setting/settings_local.py
 
 test/
 static/
 *.sqlite
+data/

@@ -15,7 +15,7 @@ from rect.tasks import parseBatchToPageRect, add
 class ScheduleForm(forms.ModelForm):
     class Meta:
         model = Schedule
-        fields = ['name', 'batch', 'type', 'desc', 'status', 'end_date', 'user_group', 'remark']
+        fields = ['name', 'batch', 'type', 'desc', 'status', 'end_date', 'remark']
 
 
 class BatchModelForm(forms.ModelForm):
@@ -39,5 +39,5 @@ class ScheduleModelForm(forms.ModelForm):
         return super(BatchModelForm, self).save(commit=commit)
 
     class Meta:
-        fields = ('batch', 'name', 'type', 'desc', 'user_group', 'status', 'end_date', 'remark')
+        fields = ('batch', 'name', 'type', 'desc', 'status', 'end_date', 'remark')
         model = Schedule

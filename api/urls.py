@@ -1,13 +1,12 @@
 # -*- coding: UTF-8 -*-
-
-from django.conf import settings
 from django.conf.urls import url, include
 
 from rest_framework import routers
 
-from rect.views import BatchViewSet, PageRectViewSet, RectViewSet, ScheduleViewSet, CCTaskViewSet, ClassifyTaskViewSet, PageTaskViewSet, OPageViewSet, OColumnViewSet
-from rect.views import CreateScheduleView, UploadBatchView
-
+from .views.rects import BatchViewSet, PageRectViewSet, RectViewSet, \
+                        ScheduleViewSet, OPageViewSet, OColumnViewSet
+from .views.tasks import CCTaskViewSet, ClassifyTaskViewSet, \
+                         PageTaskViewSet
 
 from xadmin.plugins import xversion
 xversion.register_models()
@@ -25,9 +24,7 @@ rectRouter.register(r'ocolumn', OColumnViewSet)
 
 
 urlpatterns = [
-    url(r'^rect/', include(rectRouter.urls)),
-    url(r'^rect/create_schedule', CreateScheduleView.as_view(), name='create_schedule'),
-    url(r'^rect/upload_batch', UploadBatchView.as_view(), name='upload_batch')
+    url(r'^', include(rectRouter.urls)),
 ]
 
 

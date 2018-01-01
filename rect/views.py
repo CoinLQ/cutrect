@@ -15,59 +15,6 @@ from rect.forms import ScheduleForm, BatchModelForm
 from utils.mixin_utils import LoginRequiredMixin
 
 
-class OColumnViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = OColumn.objects.all()
-    serializer_class = OColumnSerializer
-
-
-class OPageViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = OPage.objects.all()
-    serializer_class = OPageSerializer
-
-
-class BatchViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Batch.objects.all()
-    serializer_class = BatchSerializer
-
-
-class PageRectViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = PageRect.objects.all()
-    serializer_class = PageRectSerializer
-
-
-class RectViewSet(viewsets.ModelViewSet):
-    queryset = Rect.objects.all()
-    serializer_class = RectSerializer
-
-
-class ScheduleViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Schedule.objects.all()
-    serializer_class = ScheduleSerializer
-
-
-class CCTaskViewSet(mixins.RetrieveModelMixin,
-                  mixins.UpdateModelMixin,
-                  mixins.ListModelMixin,
-                  viewsets.GenericViewSet):
-    queryset = CCTask.objects.all()
-    serializer_class = CCTaskSerializer
-
-
-class ClassifyTaskViewSet(mixins.RetrieveModelMixin,
-                  mixins.UpdateModelMixin,
-                  mixins.ListModelMixin,
-                  viewsets.GenericViewSet):
-    queryset = ClassifyTask.objects.all()
-    serializer_class = ClassifyTaskSerializer
-
-class PageTaskViewSet(mixins.RetrieveModelMixin,
-                  mixins.UpdateModelMixin,
-                  mixins.ListModelMixin,
-                  viewsets.GenericViewSet):
-    queryset = PageTask.objects.all()
-    serializer_class = PageTaskSerializer
-
-
 
 #class CreateScheduleView(LoginRequiredMixin, View):
 class CreateScheduleView(View):

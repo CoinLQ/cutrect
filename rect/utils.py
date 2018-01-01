@@ -122,7 +122,6 @@ class BatchParser(object):
                 return Rect.objects.bulk_create(rectModelList)
             except DataError as err:
                 print(err)
-                import pdb;pdb.set_trace()
 
     def parsePageCode(self, pageName):
         pass
@@ -202,15 +201,16 @@ class HuaNanBatchParser(BatchParser):
                 if rectIter:
                     for rect in rectIter:
                         rectDict = rect.groupdict()
-
                         word = txtColumn[lineNum]
                         if word: rectDict['word'] = word
                         lineNum += 1 #按人类习惯用法行号以1为开始.
                         maxLineCount = max(lineNum, maxLineCount)
                         rectDict['ln'] = lineNum
-                        rectDict['cn'] = columnNum
-                        rectDict['w'] = int(rectDict['w']) - int(rectDict['x'])
+                        rectDict['cn'] = len(rectColumnArr) - columnNum + 1
+                        rectDict['w'] = (int(rectDict['w']) - int(rectDict['x']))/2
+                        rectDict['x'] = rectDict['x']/2
                         rectDict['h'] = int(rectDict['h']) - int(rectDict['y'])
+                        rectDict['pcode'] = pageCode # pageCode用于字块找出字图和字列图
                         pageRectSetList.append(rectDict)
                         model = Rect.generate(rectDict)
                         if model: pageRectModelList.append(model)
@@ -263,10 +263,13 @@ class CCAllocateTask(AllocateTask):
         cc_threshold = json_data['cc_threshold']
         rect_set = []
         task_set = []
-        for rect in Rect.objects.filter(batch=batch, cc__lte=cc_threshold):
+        query_set = Rect.objects.filter(batch=batch, cc__lte=cc_threshold)
+        for no, rect in enumerate(query_set, start=1):
             rect_set.append(rect.id.hex)
             if len(rect_set) == count:
-                task = CCTask(schedule=self.schedule, ttype=SliceType.CC, count=count, status=TaskStatus.NOT_GOT,
+                # 268,435,455可容纳一部大藏经17，280，000个字
+                task_no = "%s_%07X" % (self.schedule.name, int(no/count))
+                task = CCTask(number=task_no, schedule=self.schedule, ttype=SliceType.CC, count=count, status=TaskStatus.NOT_GOT,
                               rect_set=CCTask.serialize_set(rect_set), cc_threshold=rect.cc)
                 rect_set.clear()
                 task_set.append(task)
@@ -295,12 +298,13 @@ class ClassifyAllocateTask(AllocateTask):
             #target_char_set = target_char_set.split(',')
             query_set = Rect.objects.filter(word__in=target_char_set).order_by('word')
 
-        for rect in query_set:
+        for no, rect in enumerate(query_set, start=1):
             rect_set.append(rect.id.hex)
             word_set[rect.word] = 1
 
             if len(rect_set) == count:
-                task = ClassifyTask(schedule=self.schedule, ttype=SliceType.CLASSIFY, count=count,
+                task_no = "%s_%07X" % (self.schedule.name, int(no/count))
+                task = ClassifyTask(number=task_no, schedule=self.schedule, ttype=SliceType.CLASSIFY, count=count,
                                     rect_set=ClassifyTask.serialize_set(rect_set),
                                     char_set=ClassifyTask.serialize_set(word_set.keys()))
                 rect_set.clear()
@@ -323,18 +327,20 @@ class PerpageAllocateTask(AllocateTask):
         count = json_data['block_size']
         page_header = json_data['page_header']
         if page_header:
-            page_regex = r'^'+ page_header + r'.*'
+            page_regex = r'^' + page_header + r'.*'
             query_set = PageRect.objects.filter(batch=batch, code__iregex=page_regex)
         else:
             query_set = PageRect.objects.filter(batch=batch)
 
         page_set = []
         task_set = []
-        for page in query_set:
+
+        for no, page in enumerate(query_set, start=1):
             page_set.append(page.id.hex)
             if len(page_set) == count:
-                task = PageTask(schedule=self.schedule, ttype=SliceType.PPAGE, count=count,
-                              page_set=PageTask.serialize_set(page_set))
+                task_no = "%s_%07X" % (self.schedule.name, int(no/count))
+                task = PageTask(number=task_no, schedule=self.schedule, ttype=SliceType.PPAGE, count=count,
+                              page_set = PageTask.serialize_set(page_set))
                 page_set.clear()
                 task_set.append(task)
                 if len(task_set) == count:
