@@ -175,11 +175,13 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
     'DEFAULT_AUTHENTICATION_CLASSES': (
     'jwt_auth.authentication.JWTAuthentication',
+    'rest_framework.authentication.SessionAuthentication',
     )
 
 }
 
 JWT_AUTH = {
+    "JWT_AUTH_COOKIE": True,
     'JWT_RESPONSE_PAYLOAD_HANDLER':
         'jwt_auth.serializers.jwt_response_payload_handler',
     'JWT_PAYLOAD_HANDLER': 'jwt_auth.serializers.jwt_payload_handler',
@@ -320,8 +322,9 @@ CACHES = {
     },
 }
 
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "default"
+# DEFAULT SESSION ENGINE IS 'django.contrib.sessions.backends.db'
+# SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+# SESSION_CACHE_ALIAS = "default"
 # Redis Cache Settings end
 
 #django使用celery定时任务，使用redis和supervisor
