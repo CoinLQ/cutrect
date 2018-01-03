@@ -300,7 +300,7 @@ class ClassifyAllocateTask(AllocateTask):
 
         for no, rect in enumerate(query_set, start=1):
             rect_set.append(rect.id.hex)
-            word_set[rect.line_no] = 1
+            word_set[rect.ch] = 1
 
             if len(rect_set) == count:
                 task_no = "%s_%07X" % (self.schedule.name, int(no/count))

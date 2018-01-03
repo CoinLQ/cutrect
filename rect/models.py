@@ -212,8 +212,8 @@ class Rect(models.Model):
     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
     w = models.PositiveSmallIntegerField(verbose_name=u'宽度', default=1) #, validators=[MinValueValidator(1), MaxValueValidator(300)])
     h = models.PositiveSmallIntegerField(verbose_name=u'高度', default=1) #, validators=[MinValueValidator(1), MaxValueValidator(300)])
-    char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)  # 对应图片的一列
-    line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)
+    char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
+    line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 对应图片的一列
     cc = models.FloatField(null=True, blank=True, verbose_name=u'切分置信度', default=1, db_index=True)
     ch = models.CharField(null=True, blank=True, verbose_name=u'文字', max_length=2, default='', db_index=True)
     c_conf = models.FloatField(null=True, blank=True, verbose_name=u'识别置信度', default=1, db_index=True)
