@@ -202,11 +202,11 @@ class HuaNanBatchParser(BatchParser):
                     for rect in rectIter:
                         rectDict = rect.groupdict()
                         word = txtColumn[lineNum]
-                        if word: rectDict['word'] = word
+                        if word: rectDict['ch'] = word
                         lineNum += 1 #按人类习惯用法行号以1为开始.
                         maxLineCount = max(lineNum, maxLineCount)
-                        rectDict['ln'] = lineNum
-                        rectDict['cn'] = len(rectColumnArr) - columnNum + 1
+                        rectDict['char_no'] = lineNum
+                        rectDict['line_no'] = len(rectColumnArr) - columnNum + 1
                         rectDict['w'] = (int(rectDict['w']) - int(rectDict['x']))/2
                         rectDict['x'] = rectDict['x']/2
                         rectDict['h'] = int(rectDict['h']) - int(rectDict['y'])
@@ -293,14 +293,14 @@ class ClassifyAllocateTask(AllocateTask):
         word_set = {}
         task_set = []
         if target_char_set == "all":
-           query_set = Rect.objects.filter(batch=batch).order_by('word')
+           query_set = Rect.objects.filter(batch=batch).order_by('ch')
         else:
             #target_char_set = target_char_set.split(',')
-            query_set = Rect.objects.filter(word__in=target_char_set).order_by('word')
+            query_set = Rect.objects.filter(word__in=target_char_set).order_by('ch')
 
         for no, rect in enumerate(query_set, start=1):
             rect_set.append(rect.id.hex)
-            word_set[rect.word] = 1
+            word_set[rect.line_no] = 1
 
             if len(rect_set) == count:
                 task_no = "%s_%07X" % (self.schedule.name, int(no/count))

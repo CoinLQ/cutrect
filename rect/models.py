@@ -202,18 +202,22 @@ class PageRect(models.Model):
 
 class Rect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cid = models.CharField(null=True, blank=True, verbose_name=u'经字号', max_length=40, default='', db_index=True)
+    sutra_id = models.CharField(null=True, blank=True, verbose_name=u'经号', max_length=8, default='', db_index=True)
+    reel_no = models.CharField(null=True, blank=True, verbose_name=u'卷序号', max_length=3, default='', db_index=True)
+    vol_no = models.CharField(null=True, blank=True, verbose_name=u'册序号', max_length=3, default='', db_index=True)
+    page_no = models.CharField(null=True, blank=True, verbose_name=u'页序号', max_length=4, default='', db_index=True)
     op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
     w = models.PositiveSmallIntegerField(verbose_name=u'宽度', default=1) #, validators=[MinValueValidator(1), MaxValueValidator(300)])
     h = models.PositiveSmallIntegerField(verbose_name=u'高度', default=1) #, validators=[MinValueValidator(1), MaxValueValidator(300)])
-    ln = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 旋转90度观想，行列概念
-    cn = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'列号', default=0)
+    char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)  # 对应图片的一列
+    line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)
     cc = models.FloatField(null=True, blank=True, verbose_name=u'切分置信度', default=1, db_index=True)
-    word = models.CharField(null=True, blank=True, verbose_name=u'汉字', max_length=4, default='', db_index=True)
-    wcc = models.FloatField(null=True, blank=True, verbose_name=u'文字置信度', default=1, db_index=True)
-    ts = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=4, default='', db_index=True)
-    #ctxt = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=12, default='') #todo 1205 考虑是否必要.
+    ch = models.CharField(null=True, blank=True, verbose_name=u'文字', max_length=2, default='', db_index=True)
+    c_conf = models.FloatField(null=True, blank=True, verbose_name=u'识别置信度', default=1, db_index=True)
+    ts = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=2, default='', db_index=True)
 
     batch = models.ForeignKey(Batch, null=True, related_name='rects', on_delete=models.SET_NULL,
                               db_index=True, verbose_name=u'批次')
@@ -223,16 +227,18 @@ class Rect(models.Model):
                                   storage='storages.backends.s3boto.S3BotoStorage')
     pcode = models.CharField(max_length=64, null=True, verbose_name=u'关联源页CODE')
 
+    updated_at = models.DateTimeField(verbose_name='更新时间', auto_now=True)
+
     def __str__(self):
-        return self.word
+        return self.ch
 
     @property
     def cncode(self):
-        return "{0}_L{1:02}".format(self.pcode, self.cn)
+        return "{0}_L{1:02}".format(self.pcode, self.line_no)
 
     @property
     def rectcode(self):
-        return "{0}_Z{1:02}".format(self.cncode, self.ln)
+        return "{0}_Z{1:02}".format(self.cncode, self.char_no)
 
     @staticmethod
     def generate(dict={}):
@@ -242,11 +248,11 @@ class Rect(models.Model):
         rect.y = getVal('y')
         rect.w = getVal('w')
         rect.h = getVal('h')
-        rect.ln = getVal('ln')
-        rect.cn = getVal('cn')
+        rect.char_no = getVal('char_no')
+        rect.line_no = getVal('line_no')
         rect.cc = getVal('cc')
-        rect.wcc = getVal('wcc')
-        rect.word = getVal('word')
+        rect.c_conf = getVal('c_conf')
+        rect.ch = getVal('ch')
         return rect
 
     class Meta:
@@ -431,7 +437,7 @@ class PageTask(Task):
 #     date = models.DateField(null=True, blank=True, verbose_name=u'最近处理时间')
 
 #     def __str__(self):
-#         return self.word
+#         return self.ch
 
 #     class Meta:
 #         verbose_name = u"Patch"

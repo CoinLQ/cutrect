@@ -114,10 +114,10 @@ class ScheduleAdmin(object):
 
 # @xadmin.sites.register(Patch)
 # class PatchAdmin(object):
-#     list_display = ('id', 'task', 'schedule', 'word', 'cc', 'wcc', 'ts', 'ctxt', 'date', 'x', 'y', 'w', 'h', 'ln', 'cn', 'rect')
+#     list_display = ('id', 'task', 'schedule', 'ch', 'cc', 'c_conf', 'ts', 'ctxt', 'date', 'x', 'y', 'w', 'h', 'char_no', 'line_no', 'rect')
 #     list_display_links = ("id",)
-#     list_filter = ('task', 'schedule', 'cc', 'wcc', 'date' )
-#     search_fields = ["id", 'word', 'ts' ]
+#     list_filter = ('task', 'schedule', 'cc', 'c_conf', 'date' )
+#     search_fields = ["id", 'ch', 'ts' ]
 #     date_hierarchy = 'date'
 #     relfield_style = "fk-select"
 #     reversion_enable = True
