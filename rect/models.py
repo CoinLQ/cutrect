@@ -172,7 +172,7 @@ class PageRect(models.Model):
     op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
     code = models.CharField(max_length=64, null=True, verbose_name=u'关联源页CODE') # Eg. GLZ_K1000_S0001_V0001_P0001
     batch = models.ForeignKey(Batch, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
-                              db_index=True, verbose_name=u'批次')  # 批次删除，暂不删除切分数据
+                              db_index=True, verbose_name=u'批次')  # 批次删除, 暂不删除切分数据
     line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数')
     column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数')
     rect_set = models.TextField(blank=True, null=True, verbose_name=u'切字块JSON数据集')
@@ -203,10 +203,7 @@ class PageRect(models.Model):
 class Rect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cid = models.CharField(null=True, blank=True, verbose_name=u'经字号', max_length=40, default='', db_index=True)
-    sutra_id = models.CharField(null=True, blank=True, verbose_name=u'经号', max_length=8, default='', db_index=True)
-    reel_no = models.CharField(null=True, blank=True, verbose_name=u'卷序号', max_length=3, default='', db_index=True)
-    vol_no = models.CharField(null=True, blank=True, verbose_name=u'册序号', max_length=3, default='', db_index=True)
-    page_no = models.CharField(null=True, blank=True, verbose_name=u'页序号', max_length=4, default='', db_index=True)
+
     op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
@@ -222,7 +219,7 @@ class Rect(models.Model):
     batch = models.ForeignKey(Batch, null=True, related_name='rects', on_delete=models.SET_NULL,
                               db_index=True, verbose_name=u'批次')
     page_rect = models.ForeignKey(PageRect, null=True, blank=True, related_name='rects', on_delete=models.SET_NULL,
-                                  verbose_name=u'源页切分集') # 数据重要不级联删除，使用业务逻辑过滤删除.
+                                  verbose_name=u'源页切分集') # 数据重要不级联删除, 使用业务逻辑过滤删除.
     s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
                                   storage='storages.backends.s3boto.S3BotoStorage')
     pcode = models.CharField(max_length=64, null=True, verbose_name=u'关联源页CODE')
@@ -420,7 +417,7 @@ class PageTask(Task):
 #                                          validators=[MinValueValidator(1), MaxValueValidator(300)])
 #     h = models.PositiveSmallIntegerField(verbose_name=u'高度', default=1,
 #                                          validators=[MinValueValidator(1), MaxValueValidator(300)])
-#     ln = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 旋转90度观想，行列概念
+#     ln = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 旋转90度观想, 行列概念
 #     cn = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'列号', default=0)  # todo ln cn, 考虑patch提交后不参与其中, 只作补充Rect, 固不需要这两个字段了.
 #     cc = models.FloatField(null=True, blank=True, verbose_name=u'置信度', default=1, db_index=True) #todo 1215 可以删掉, 因为patch是人工操作
 #     word = models.CharField(null=True, blank=True, verbose_name=u'汉字', max_length=4, default='', db_index=True)
@@ -472,6 +469,77 @@ class ActivityLog(models.Model):
 #         return "%s Access Record" % self.date.strftime('%Y-%m-%d')
 
 
+class TripiMixin(object):
+    def __str__(self):
+        return self.name
 
 
+class LQSutra(models.Model, TripiMixin):
+    code = models.CharField(verbose_name='龙泉经目编码', max_length=8, primary_key=True) #（为"LQ"+ 经序号 + 别本号）
+    name = models.CharField(verbose_name='龙泉经目名称', max_length=64, blank=False)
+    total_reels = models.IntegerField(verbose_name='总卷数', blank=True, default=1)
 
+    class Meta:
+        verbose_name = u"龙泉经目"
+        verbose_name_plural = u"龙泉经目管理"
+
+
+class Tripitaka(models.Model, TripiMixin):
+    code = models.CharField(verbose_name='实体藏经版本编码', primary_key=True, max_length=4, blank=False)
+    name = models.CharField(verbose_name='实体藏经名称', max_length=32, blank=False)
+
+    class Meta:
+        verbose_name = '实体藏经'
+        verbose_name_plural = '实体藏经管理'
+
+
+class Sutra(models.Model, TripiMixin):
+    sid = models.CharField(verbose_name='实体藏经|唯一经号编码', editable=True, max_length=32) # 藏经版本编码 + 5位经序号+1位别本号
+    tripitaka = models.ForeignKey(Tripitaka, related_name='sutras')
+    code = models.CharField(verbose_name='实体经目编码', max_length=5, blank=False)
+    variant_code = models.CharField(verbose_name='别本编码', max_length=1, default='0')
+    name = models.CharField(verbose_name='实体经目名称', max_length=64, blank=True)
+    lqsutra = models.ForeignKey(LQSutra, verbose_name='龙泉经目编码', null=True, blank=True) #（为"LQ"+ 经序号 + 别本号）
+    total_reels = models.IntegerField(verbose_name='总卷数', blank=True, default=1)
+
+    class Meta:
+        verbose_name = '实体经目'
+        verbose_name_plural = '实体经目管理'
+
+class Reel(models.Model):
+    sutra = models.ForeignKey(Sutra, related_name='reels')
+    sutra_no = models.CharField(verbose_name='经卷序号编码', max_length=3, blank=False)
+    code = models.CharField(verbose_name='实体藏经卷级总编码', max_length=32, blank=False)
+    ready = models.BooleanField(verbose_name='已准备好', default=False)
+    image_ready = models.BooleanField(verbose_name='图源状态', default=False)
+    image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
+    txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
+    cut_ready = models.BooleanField(verbose_name='切分数据状态', default=False)
+    column_ready = models.BooleanField(verbose_name='切列图状态', default=False)
+
+    class Meta:
+        verbose_name = '实体藏经卷'
+        verbose_name_plural = '实体藏经卷管理'
+
+class Page(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reel = models.ForeignKey(Reel, related_name='pages')
+    reel_page_no = models.IntegerField(verbose_name='卷级页序号编码', default=1)
+    code = models.CharField(verbose_name='实体藏经页级总编码', max_length=64, blank=False)
+    vol_no = models.CharField(verbose_name='册序号编码', max_length=3, blank=False)
+    page_no = models.CharField(verbose_name='册级页序号编码', max_length=4, blank=False)
+    img_path = models.CharField(verbose_name='图片路径', max_length=128, blank=False)
+    ready = models.BooleanField(verbose_name='已准备好', default=False)
+    image_ready = models.BooleanField(verbose_name='图源状态', default=False)
+    image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
+    txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
+    cut_ready = models.BooleanField(verbose_name='切分数据状态', default=False)
+    column_ready = models.BooleanField(verbose_name='切列图状态', default=False)
+    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u'S3图片路径地址', upload_to='lqcharacters-images',
+                                storage='storages.backends.s3boto.S3BotoStorage')
+    def get_real_path(self):
+        return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/" + self.img_path
+
+    class Meta:
+        verbose_name = '实体藏经页'
+        verbose_name_plural = '实体藏经页管理'
