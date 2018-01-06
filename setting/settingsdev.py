@@ -31,12 +31,12 @@ CORS_ORIGIN_ALLOW_ALL = True
 # 请按照你开发时本机的数据库名字，密码，端口填写
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'cutrect',
-        'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'localhost',
-        'PORT': '3306',
-        'OPTIONS': {'charset': 'utf8mb4', 'init_command': 'SET default_storage_engine=InnoDB'}
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'cutrect_dev',
+        'USER': 'lqzj',
+        'PASSWORD': 'lqdzjsql',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
+
     },
 }

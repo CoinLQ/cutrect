@@ -3,7 +3,7 @@
 import re
 import os
 import oss2
-from rect.models import ORGGroup, SliceType, Batch, PageRect, Rect, OPage, TaskStatus, CCTask, ClassifyTask, PageTask
+from rect.models import ORGGroup, SliceType, PageRect, Rect, Page, TaskStatus, CCTask, ClassifyTask, PageTask
 import zipfile
 import json
 from django.db import transaction
@@ -218,7 +218,7 @@ class HuaNanBatchParser(BatchParser):
             pageRect = PageRect()
             pageRect.batch = self.batch
             # try:
-            #     pageRect.page = OPage.objects.get(code=imgPath)
+            #     pageRect.page = Page.objects.get(code=imgPath)
             # except ObjectDoesNotExist:
             #     pass
             pageRect.code = pageCode

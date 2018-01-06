@@ -12,14 +12,13 @@ from django.db.models import Q
 from django.utils.translation import ugettext as _
 from django.db.models import Q
 
-from .forms import BatchModelForm, ScheduleModelForm
+from .forms import ScheduleModelForm
 
 @xadmin.sites.register(views.website.IndexView)
 class MainDashboard(object):
     widgets = [
         [
             {"type": "html", "title": u"大藏经", "content": "<h3> 欢迎来到龙泉大藏经切分管理平台 </h3><p>加入我们，@longquan</p>"},
-            {"type": "addform", "model": Batch}
         ],
         [
             {"type": "list", "model": "rect.Schedule", "params": {"o": "-create_date"}},
@@ -39,9 +38,9 @@ class BaseSetting(object):
 
 @xadmin.sites.register(views.CommAdminView)
 class GlobalSetting(object):
-    global_search_models = [Batch, Schedule]
+    global_search_models = [Schedule]
     global_models_icon = {
-        Batch: "fa fa-copy", PageRect: "fa fa-pagelines", Schedule: "fa fa-laptop" #, Task: "fa fa-bars"
+        PageRect: "fa fa-pagelines", Schedule: "fa fa-laptop" #, Task: "fa fa-bars"
     }
     menu_style = 'default'  # 'accordion'
 
@@ -55,18 +54,6 @@ class GlobalSetting(object):
 '''
 基础配置
 '''
-
-@xadmin.sites.register(Batch)
-class BatchAdmin(object):
-    form = BatchModelForm
-    list_display = ("name", "series", "org", "upload", "submit_date", "remark")
-    list_display_links = ("name",)
-    list_filter = ('series', 'org', 'submit_date')  # 过滤器
-    search_fields = ("name",)
-    date_hierarchy = 'submit_date'  # 详细时间分层筛选
-    relfield_style = "fk-select"
-    reversion_enable = True
-
 
 @xadmin.sites.register(PageRect)
 class PageRectAdmin(object):

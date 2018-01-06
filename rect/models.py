@@ -5,11 +5,16 @@ from django.db import models
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 import uuid
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 from db_file_storage.storage import DatabaseFileStorage
 from jwt_auth.models import Staff
 from django.utils.timezone import localtime, now
 from functools import wraps
 import json
+from jsonfield import JSONField
+from django.db import connection
+from django.db.models import Sum, Case, When, Value, Count, Avg
 
 
 db_storage = DatabaseFileStorage()
@@ -99,24 +104,102 @@ class OpStatus(object):
         (COLLATE, u'文字校对')
     )
 
-class OPage(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'原始页编码')
-    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
-                                storage='storages.backends.s3boto.S3BotoStorage')
+class ReviewResult(object):
+    INITIAL = 0
+    AGREE = 1
+    DISAGREE = 2
+    IGNORED = 3
+    CHOICES = (
+        (INITIAL, u'未审阅'),
+        (AGREE, u'已同意'),
+        (DISAGREE, u'未同意'),
+        (IGNORED, u'被略过'),
+    )
+
+
+class TripiMixin(object):
+    def __str__(self):
+        return self.name
+
+
+class LQSutra(models.Model, TripiMixin):
+    code = models.CharField(verbose_name='龙泉经目编码', max_length=8, primary_key=True) #（为"LQ"+ 经序号 + 别本号）
+    name = models.CharField(verbose_name='龙泉经目名称', max_length=64, blank=False)
+    total_reels = models.IntegerField(verbose_name='总卷数', blank=True, default=1)
 
     class Meta:
-        verbose_name = u"原始页"
-        verbose_name_plural = u"原始页管理"
-        ordering = ('code', )
+        verbose_name = u"龙泉经目"
+        verbose_name_plural = u"龙泉经目管理"
 
+
+class Tripitaka(models.Model, TripiMixin):
+    code = models.CharField(verbose_name='实体藏经版本编码', primary_key=True, max_length=4, blank=False)
+    name = models.CharField(verbose_name='实体藏经名称', max_length=32, blank=False)
+
+    class Meta:
+        verbose_name = '实体藏经'
+        verbose_name_plural = '实体藏经管理'
+
+
+class Sutra(models.Model, TripiMixin):
+    sid = models.CharField(verbose_name='实体藏经|唯一经号编码', editable=True, max_length=10) # 藏经版本编码 + 5位经序号+1位别本号
+    tripitaka = models.ForeignKey(Tripitaka, related_name='sutras')
+    code = models.CharField(verbose_name='实体经目编码', max_length=5, blank=False)
+    variant_code = models.CharField(verbose_name='别本编码', max_length=1, default='0')
+    name = models.CharField(verbose_name='实体经目名称', max_length=64, blank=True)
+    lqsutra = models.ForeignKey(LQSutra, verbose_name='龙泉经目编码', null=True, blank=True) #（为"LQ"+ 经序号 + 别本号）
+    total_reels = models.IntegerField(verbose_name='总卷数', blank=True, default=1)
+
+    class Meta:
+        verbose_name = '实体经目'
+        verbose_name_plural = '实体经目管理'
+
+class Reel(models.Model):
+    sutra = models.ForeignKey(Sutra, related_name='reels')
+    sutra_no = models.CharField(verbose_name='经卷序号编码', max_length=3, blank=False)
+    code = models.CharField(verbose_name='实体藏经卷级总编码', max_length=32, blank=False)
+    ready = models.BooleanField(verbose_name='已准备好', default=False)
+    image_ready = models.BooleanField(verbose_name='图源状态', default=False)
+    image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
+    txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
+    cut_ready = models.BooleanField(verbose_name='切分数据状态', default=False)
+    column_ready = models.BooleanField(verbose_name='切列图状态', default=False)
+
+    class Meta:
+        verbose_name = '实体藏经卷'
+        verbose_name_plural = '实体藏经卷管理'
+
+class Page(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reel = models.ForeignKey(Reel, related_name='pages')
+    reel_page_no = models.IntegerField(verbose_name='卷级页序号编码', default=1)
+    code = models.CharField(verbose_name='实体藏经页级总编码', max_length=64, blank=False)
+    vol_no = models.CharField(verbose_name='册序号编码', max_length=3, blank=False)
+    page_no = models.CharField(verbose_name='册级页序号编码', max_length=4, blank=False)
+    img_path = models.CharField(verbose_name='图片路径', max_length=128, blank=False)
+    ready = models.BooleanField(verbose_name='已准备好', default=False)
+    image_ready = models.BooleanField(verbose_name='图源状态', default=False)
+    image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
+    txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
+    cut_ready = models.BooleanField(verbose_name='切分数据状态', default=False)
+    column_ready = models.BooleanField(verbose_name='切列图状态', default=False)
+    json = JSONField(default=dict)
+    # s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u'S3图片路径地址', upload_to='lqcharacters-images',
+    #                             storage='storages.backends.s3boto.S3BotoStorage')
+    def get_real_path(self):
+        return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/" + self.img_path
+
+    class Meta:
+        verbose_name = '实体藏经页'
+        verbose_name_plural = '实体藏经页管理'
 
 class OColumn(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    opage = models.ForeignKey(OPage, related_name='ocolumns', on_delete=models.CASCADE,
-                              db_index=True, verbose_name=u'原始页')
+    page = models.ForeignKey(Page, blank=True, null=True, related_name='ocolumns', on_delete=models.CASCADE,
+                             verbose_name=u'原始页')
     code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'页的切列编码')
-    location = models.CharField(max_length=64, null=True, verbose_name='位置坐标参数')
+    x = models.PositiveSmallIntegerField(verbose_name=u'坐标x', default=0)
+    y = models.PositiveSmallIntegerField(verbose_name=u'坐标y', default=0)
     s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
                                 storage='storages.backends.s3boto.S3BotoStorage')
 
@@ -143,40 +226,16 @@ class OColumn(models.Model):
         return n
 
 
-class Batch(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=64, verbose_name=u'批次名')
-    series = models.CharField(max_length=64, verbose_name=u'藏经版本名')
-    org = models.PositiveSmallIntegerField(
-        choices=ORGGroup.IDS,
-        default=ORGGroup.ALI,
-        verbose_name=u'组织名称',
-    )
-    upload = models.FileField(null=True, upload_to='', verbose_name=u'上传批次数据')
-    submit_date = models.DateField(null=True, blank=True, verbose_name=u'提交时间')
-    remark = models.TextField(null=True, blank=True, verbose_name=u'备注')
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        verbose_name = u"批次"
-        verbose_name_plural = u"批次管理"
-        ordering = ('submit_date', 'name')
-
-
 class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    page = models.ForeignKey(OPage, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
-                              db_index=True, verbose_name=u'关联源页信息')
+    page = models.ForeignKey(Page, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
+                             verbose_name=u'关联源页信息')
     op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
     code = models.CharField(max_length=64, null=True, verbose_name=u'关联源页CODE') # Eg. GLZ_K1000_S0001_V0001_P0001
-    batch = models.ForeignKey(Batch, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
-                              db_index=True, verbose_name=u'批次')  # 批次删除, 暂不删除切分数据
     line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数')
     column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数')
-    rect_set = models.TextField(blank=True, null=True, verbose_name=u'切字块JSON数据集')
-    create_date = models.DateField(null=True, blank=True, verbose_name=u'创建时间')
+    rect_set = JSONField(default=list, verbose_name=u'切字块JSON切分数据集')
+    created_at = models.DateTimeField(null=True, blank=True, verbose_name=u'创建时间', auto_now_add=True)
 
     def __str__(self):
         return str(self.id)
@@ -184,7 +243,7 @@ class PageRect(models.Model):
     class Meta:
         verbose_name = u"源页切分集"
         verbose_name_plural = u"源页切分集管理"
-        ordering = ('create_date',)
+        ordering = ('id',)
 
     @property
     def s3_uri(self):
@@ -202,22 +261,19 @@ class PageRect(models.Model):
 
 class Rect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    cid = models.CharField(null=True, blank=True, verbose_name=u'经字号', max_length=40, default='', db_index=True)
-
-    op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
+    cid = models.CharField(null=True, blank=True, verbose_name=u'经字号', max_length=40, default='')
+    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects')
+    op = models.PositiveSmallIntegerField(verbose_name=u'操作类型', default=OpStatus.NORMAL)
     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
-    w = models.PositiveSmallIntegerField(verbose_name=u'宽度', default=1) #, validators=[MinValueValidator(1), MaxValueValidator(300)])
-    h = models.PositiveSmallIntegerField(verbose_name=u'高度', default=1) #, validators=[MinValueValidator(1), MaxValueValidator(300)])
+    w = models.IntegerField(verbose_name=u'宽度', default=1)
+    h = models.IntegerField(verbose_name=u'高度', default=1)
     char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
     line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 对应图片的一列
-    cc = models.FloatField(null=True, blank=True, verbose_name=u'切分置信度', default=1, db_index=True)
+    cc = models.FloatField(null=True, blank=True, verbose_name=u'切分置信度', default=1)
     ch = models.CharField(null=True, blank=True, verbose_name=u'文字', max_length=2, default='', db_index=True)
-    c_conf = models.FloatField(null=True, blank=True, verbose_name=u'识别置信度', default=1, db_index=True)
-    ts = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=2, default='', db_index=True)
-
-    batch = models.ForeignKey(Batch, null=True, related_name='rects', on_delete=models.SET_NULL,
-                              db_index=True, verbose_name=u'批次')
+    wcc = models.FloatField(null=True, blank=True, verbose_name=u'识别置信度', default=1, db_index=True)
+    ts = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=2, default='')
     page_rect = models.ForeignKey(PageRect, null=True, blank=True, related_name='rects', on_delete=models.SET_NULL,
                                   verbose_name=u'源页切分集') # 数据重要不级联删除, 使用业务逻辑过滤删除.
     s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
@@ -258,18 +314,68 @@ class Rect(models.Model):
         ordering = ('-cc',)
 
 
+@receiver(pre_save, sender=Rect)
+def positive_w_h_fields(sender, instance, **kwargs):
+    if (instance.w < 0):
+        instance.x = instance.x + instance.w
+        instance.w = abs(instance.w)
+    if (instance.h < 0):
+        instance.y = instance.y + instance.h
+        instance.h = abs(instance.h)
+
+    if (instance.w == 0):
+        instance.w = 1
+    if (instance.h == 0):
+        instance.h = 1
+
+class Patch(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    op = models.PositiveSmallIntegerField(verbose_name=u'操作类型', default=OpStatus.NORMAL)
+    x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
+    y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
+    w = models.PositiveSmallIntegerField(verbose_name=u'宽度', default=1)
+    h = models.PositiveSmallIntegerField(verbose_name=u'高度', default=1)
+    ocolumn_uri = models.CharField(verbose_name='行图片路径', max_length=128, blank=False)
+    ocolumn_x = models.PositiveSmallIntegerField(verbose_name=u'行图X坐标', default=0)
+    ocolumn_y = models.PositiveSmallIntegerField(verbose_name=u'行图Y坐标', default=0)
+    char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
+    line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 对应图片的一列
+    ch = models.CharField(null=True, blank=True, verbose_name=u'文字', max_length=2, default='')
+    rect_id = models.CharField(verbose_name='字块CID', max_length=128, blank=False)
+    rect_x = models.PositiveSmallIntegerField(verbose_name=u'原字块X坐标', default=0)
+    rect_y = models.PositiveSmallIntegerField(verbose_name=u'原字块Y坐标', default=0)
+    rect_w = models.PositiveSmallIntegerField(verbose_name=u'原字块宽度', default=1)
+    rect_h = models.PositiveSmallIntegerField(verbose_name=u'原字块高度', default=1)
+    ts = models.CharField(null=True, blank=True, verbose_name=u'修订文字', max_length=2, default='')
+    result = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'审定意见', default=ReviewResult.INITIAL)  # 1 同意 2 不同意
+    modifier = models.ForeignKey(Staff, null=True, blank=True, related_name='modify_patches', verbose_name=u'修改人')
+    verifier = models.ForeignKey(Staff, null=True, blank=True, related_name='verify_patches', verbose_name=u'审定人')
+
+    submitted_at = models.DateTimeField(verbose_name='修订时间', auto_now_add=True)
+    updated_at = models.DateTimeField(null=True, blank=True, verbose_name=u'更新时间', auto_now=True)
+
+    def __str__(self):
+        return self.ch
+
+    class Meta:
+        verbose_name = u"Patch"
+        verbose_name_plural = u"Patch管理"
+        ordering = ("ch",)
+
+
 class Schedule(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    batch = models.ForeignKey(Batch, null=True, related_name='schedules', on_delete=models.SET_NULL,
-                              db_index=True, verbose_name=u'批次')
-    name = models.CharField(max_length=64, verbose_name=u'切分计划名')
-    type = models.PositiveSmallIntegerField(
-        db_index=True,
-        choices=SliceType.CHOICES,
-        default=SliceType.PPAGE,
-        verbose_name=u'切分方式',
+    reels = models.ManyToManyField(Reel)
+    schedule_no = models.CharField(max_length=64, verbose_name=u'切分计划批次', default='')
+    cc_threshold = models.FloatField("切分置信度阈值", default=0.65)
+    wcc_threshold = models.FloatField("聚类置信度阈值", default=0.75)
+
+    # todo 设置总任务的优先级时, 子任务包的优先级凡是小于总任务优先级的都提升优先级, 高于或等于的不处理. 保持原优先级.
+    priority = models.PositiveSmallIntegerField(
+        choices=PriorityLevel.CHOICES,
+        default=PriorityLevel.MIDDLE,
+        verbose_name=u'任务计划优先级',
     )
-    desc = models.CharField(max_length=256, null=True, blank=True, verbose_name=u'计划格式化描述')
     status = models.PositiveSmallIntegerField(
         db_index=True,
         null=True,
@@ -278,9 +384,9 @@ class Schedule(models.Model):
         default=ScheduleStatus.ACTIVE,
         verbose_name=u'计划状态',
     )
-    end_date = models.DateField(null=True, blank=True, db_index=True, verbose_name=u'截止日期')
-    create_date = models.DateField(null=True, blank=True, verbose_name=u'创建日期')
-    remark = models.TextField(null=True, blank=True, verbose_name=u'备注')
+    due_at = models.DateField(null=True, blank=True, verbose_name=u'截止日期')
+    created_at = models.DateTimeField(null=True, blank=True, verbose_name=u'创建日期', auto_now_add=True)
+    remark = models.TextField(max_length=256, null=True, blank=True, verbose_name=u'备注')
 
     def __str__(self):
         return self.name
@@ -288,7 +394,7 @@ class Schedule(models.Model):
     class Meta:
         verbose_name = u"切分计划"
         verbose_name_plural = u"切分计划管理"
-        ordering = ('end_date', "name", "status")
+        ordering = ('due_at', "status")
 
 
 def activity_log(func):
@@ -303,14 +409,45 @@ def activity_log(func):
     return tmp
 
 
+class Schedule_Task_Statistical(models.Model):
+    schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='schedule_task_statis', on_delete=models.SET_NULL,
+                                 verbose_name=u'切分计划')
+    amount_of_cctasks = models.IntegerField(verbose_name=u'置信任务总数', default=-1)
+    completed_cctasks = models.IntegerField(verbose_name=u'置信任务完成数', default=0)
+    amount_of_classifytasks = models.IntegerField(verbose_name=u'聚类任务总数', default=-1)
+    completed_classifytasks = models.IntegerField(verbose_name=u'聚类任务完成数', default=0)
+    amount_of_absenttasks = models.IntegerField(verbose_name=u'查漏任务总数', default=-1)
+    completed_absenttasks = models.IntegerField(verbose_name=u'查漏任务完成数', default=0)
+    amount_of_pptasks = models.IntegerField(verbose_name=u'逐字任务总数', default=-1)
+    completed_pptasks = models.IntegerField(verbose_name=u'逐字任务完成数', default=0)
+    amount_of_vdeltasks = models.IntegerField(verbose_name=u'删框任务总数', default=-1)
+    completed_vdeltasks = models.IntegerField(verbose_name=u'删框任务完成数', default=0)
+    amount_of_reviewtasks = models.IntegerField(verbose_name=u'审定任务总数', default=-1)
+    completed_reviewtasks = models.IntegerField(verbose_name=u'审定任务完成数', default=0)
+    remark = models.TextField(max_length=256, null=True, blank=True, verbose_name=u'备注', default= '')
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+
+class Reel_Task_Statistical(models.Model):
+    schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='schedule_reel_task_statis',
+                                 on_delete=models.SET_NULL, verbose_name=u'切分计划')
+    reel = models.ForeignKey(Reel, related_name='reel_tasks_statis')
+    amount_of_cctasks = models.IntegerField(verbose_name=u'置信任务总数', default=-1)
+    completed_cctasks = models.IntegerField(verbose_name=u'置信任务完成数', default=0)
+    amount_of_absenttasks = models.IntegerField(verbose_name=u'查漏任务总数', default=-1)
+    completed_absenttasks = models.IntegerField(verbose_name=u'查漏任务完成数', default=0)
+    amount_of_pptasks = models.IntegerField(verbose_name=u'逐字任务总数', default=-1)
+    completed_pptasks = models.IntegerField(verbose_name=u'逐字任务完成数', default=0)
+
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
 
 class Task(models.Model):
     '''
     切分校对计划的任务实例
     估计划激活后, 即后台自动据校对类型分配任务列表.
     '''
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    number = models.CharField(null=True, blank=True, max_length=64, verbose_name='任务编号')
+    number = models.CharField(primary_key=True, max_length=64, verbose_name='任务编号')
     ttype = models.PositiveSmallIntegerField(
         db_index=True,
         choices=SliceType.CHOICES,
@@ -369,78 +506,103 @@ class Task(models.Model):
             models.Index(fields=['priority', 'status']),
         ]
 
-
 class CCTask(Task):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='cc_tasks', on_delete=models.SET_NULL,
-                                 db_index=True, verbose_name=u'切分计划')  # todo 1205 后续考虑级联删除.
-    count = models.IntegerField("任务字块数")
+                                 verbose_name=u'切分计划')
+    count = models.IntegerField("任务字块数", default=20)
     cc_threshold = models.FloatField("最高置信度")
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='cc_tasks')
-    rect_set = models.TextField(null=True, verbose_name=u'字块集') # [rect_id, rect_id]
+    rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_id, rect_id]
 
-    @property
-    def rects(self):
-        return self.rect_set.split(';')
+    class Meta:
+        verbose_name = u"置信校对任务"
+        verbose_name_plural = u"置信校对任务管理"
 
 
 class ClassifyTask(Task):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='classify_tasks', on_delete=models.SET_NULL,
-                                 db_index=True, verbose_name=u'切分计划')  # todo 1205 后续考虑级联删除.
-    count = models.IntegerField("任务字块数")
-    char_set = models.TextField(null=True, blank=True, verbose_name=u'字符集') # [ ‘人’, ‘无’]
+                                 verbose_name=u'切分计划')
+    count = models.IntegerField("任务字块数", default=10)
+    char_set = models.TextField(null=True, blank=True, verbose_name=u'字符集')
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='classify_tasks')
-    rect_set = models.TextField(null=True, verbose_name=u'字块集') # [rect_id, rect_id]
+    rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_id, rect_id]
 
-    @property
-    def rects(self):
-        return self.rect_set.split(';')
+    class Meta:
+        verbose_name = u"聚类校对任务"
+        verbose_name_plural = u"聚类校对任务管理"
 
 class PageTask(Task):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='page_tasks', on_delete=models.SET_NULL,
-                                 db_index=True, verbose_name=u'切分计划')  # todo 1205 后续考虑级联删除.
-    count = models.IntegerField("页的数量")
-    page_set = models.TextField(null=True, verbose_name=u'页的集合') # [page_id, page_id]
+                                 verbose_name=u'切分计划')
+    count = models.IntegerField("任务页的数量", default=1)
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='page_tasks')
+    page_set = JSONField(default=list, verbose_name=u'页的集合') # [page_id, page_id]
 
-    @property
-    def pages(self):
-        return self.page_set.split(';')
+    class Meta:
+        verbose_name = u"逐字校对任务"
+        verbose_name_plural = u"逐字校对任务管理"
+
+class AbsentTask(Task):
+    schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='absent_tasks', on_delete=models.SET_NULL,
+                                 verbose_name=u'切分计划')
+    count = models.IntegerField("任务页的数量", default=1)
+    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='absent_tasks')
+    page_set = JSONField(default=list, verbose_name=u'页的集合') # [page_id, page_id]
+
+    class Meta:
+        verbose_name = u"查漏补缺任务"
+        verbose_name_plural = u"查漏补缺任务管理"
+
+
+class DelTask(Task):
+    schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='del_tasks', on_delete=models.SET_NULL,
+                                 verbose_name=u'切分计划')
+    count = models.IntegerField("任务字块数", default=10)
+    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='del_tasks')
+    rect_set = JSONField(default=list, verbose_name=u'字块集') # [deletion_item_id, deletion_item_id]
+
+    class Meta:
+        verbose_name = u"删框任务"
+        verbose_name_plural = u"删框任务管理"
+
+
+class ReviewTask(Task):
+    schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='review_tasks', on_delete=models.SET_NULL,
+                                 verbose_name=u'切分计划')
+    count = models.IntegerField("任务字块数", default=10)
+    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='review_tasks')
+    rect_set = JSONField(default=list, verbose_name=u'字块补丁集') # [patch_id, patch_id]
+
+    class Meta:
+        verbose_name = u"审定任务"
+        verbose_name_plural = u"审定任务管理"
 
 
 
-# class Patch(models.Model):
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+class DeletionCheckItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    op = models.PositiveSmallIntegerField(verbose_name=u'操作类型', default=OpStatus.DELETED)
+    x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
+    y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
+    w = models.PositiveSmallIntegerField(verbose_name=u'宽度', default=1)
+    h = models.PositiveSmallIntegerField(verbose_name=u'高度', default=1)
+    ocolumn_uri = models.CharField(verbose_name='行图片路径', max_length=128, blank=False)
+    ocolumn_x = models.PositiveSmallIntegerField(verbose_name=u'行图X坐标', default=0)
+    ocolumn_y = models.PositiveSmallIntegerField(verbose_name=u'行图Y坐标', default=0)
+    ch = models.CharField(null=True, blank=True, verbose_name=u'文字', max_length=2, default='')
 
-#     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
-#     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
-#     w = models.PositiveSmallIntegerField(verbose_name=u'宽度', default=1,
-#                                          validators=[MinValueValidator(1), MaxValueValidator(300)])
-#     h = models.PositiveSmallIntegerField(verbose_name=u'高度', default=1,
-#                                          validators=[MinValueValidator(1), MaxValueValidator(300)])
-#     ln = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 旋转90度观想, 行列概念
-#     cn = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'列号', default=0)  # todo ln cn, 考虑patch提交后不参与其中, 只作补充Rect, 固不需要这两个字段了.
-#     cc = models.FloatField(null=True, blank=True, verbose_name=u'置信度', default=1, db_index=True) #todo 1215 可以删掉, 因为patch是人工操作
-#     word = models.CharField(null=True, blank=True, verbose_name=u'汉字', max_length=4, default='', db_index=True)
-#     wcc = models.FloatField(null=True, blank=True, verbose_name=u'文字置信度', default=1, db_index=True) #todo 1215 可以删掉, 因为patch是人工操作
-#     ts = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=4, default='', db_index=True)
-#     ctxt = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=12, default='') #todo 1205 考虑是否必要.
+    rect_id = models.CharField(verbose_name='字块CID', max_length=128, blank=False)
+    modifier = models.ForeignKey(Staff, null=True, blank=True, related_name='modify_deletions', verbose_name=u'修改人')
+    verifier = models.ForeignKey(Staff, null=True, blank=True, related_name='verify_deletions', verbose_name=u'审定人')
+    result = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'审定意见', default=ReviewResult.INITIAL)  # 1 同意 2 不同意
+    del_task = models.ForeignKey(DelTask, null=True, blank=True, related_name='del_task_items', on_delete=models.SET_NULL,
+                                 verbose_name=u'删框任务')
+    created_at = models.DateTimeField(verbose_name='删框时间', auto_now_add=True)
+    updated_at = models.DateTimeField(null=True, blank=True, verbose_name=u'更新时间', auto_now=True)
 
-#     rect = models.ForeignKey(Rect, null=True, blank=True, related_name='patches', on_delete=models.SET_NULL,
-#                              verbose_name=u'源-切字块数据')  #一个批次可能存在多个切分计划, 所以有多个批次中的多个切块对应着这个批次的某个切块.
-#     task = models.ForeignKey(Task, null=True, blank=True, related_name='patches', on_delete=models.SET_NULL,
-#                              verbose_name=u'切分任务') #todo 1205 后续考虑级联删除.
-#     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='patches', on_delete=models.SET_NULL,
-#                                  db_index=True, verbose_name=u'切分计划') #todo 1205 后续考虑级联删除.
-#     date = models.DateField(null=True, blank=True, verbose_name=u'最近处理时间')
-
-#     def __str__(self):
-#         return self.ch
-
-#     class Meta:
-#         verbose_name = u"Patch"
-#         verbose_name_plural = u"Patch管理"
-#         ordering = ('schedule', "task", "word")
-
+    class Meta:
+        verbose_name = u"删框记录"
+        verbose_name_plural = u"删框记录管理"
 
 class ActivityLog(models.Model):
     user = models.ForeignKey(Staff, related_name='activities')
@@ -456,6 +618,47 @@ class ActivityLog(models.Model):
                                                self.action, self.object_type,
                                                self.object_pk, self.created_at)
 
+
+class CharClassifyPlan(models.Model):
+    schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='char_clsfy_plan',
+                                 on_delete=models.SET_NULL, verbose_name=u'切分计划')
+    ch = models.CharField(null=True, blank=True, verbose_name=u'文字', max_length=2, default='', db_index=True)
+    total_cnt = models.IntegerField(verbose_name=u'总数', default=0)
+    needcheck_cnt = models.IntegerField(verbose_name=u'待检查数', default=0)
+    done_cnt = models.IntegerField(verbose_name=u'已完成数', default=0)
+    wcc_threshold = models.DecimalField(verbose_name=u'识别置信阈值',max_digits=4, decimal_places=3, default=0, db_index=True)
+
+
+    def create_charplan(self, schedule):
+        cursor = connection.cursor()
+        raw_sql = '''
+        SET SEARCH_PATH TO public;
+        INSERT INTO public.rect_charclassifyplan (ch, total_cnt)
+        SELECT
+        ch,
+        count(rect_rect."ch") as total_cnt,
+        FROM
+        public.rect_rect
+        where reel_id IN ('%s')
+        group by ch
+        ON CONFLICT (ch)
+        DO UPDATE SET
+        total_cnt=EXCLUDED.total_cnt,
+        schedule_id='%s'
+        ''' % (','.join(schedule.reels.values_list('id', flat=True)), schedule.id)
+        cursor.execute(raw_sql)
+
+
+    def measure_charplan(self, wcc_threshold):
+        result = Rect.objects.filter(ch=self.ch, reel__in=self.schedule.reels).aggregate(
+            needcheck_cnt=Sum(Case(When(wcc__lte=wcc_threshold, then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField())),
+            total_cnt=Count('id'))
+        CharClassifyPlan.objects.get_or_create(schedule=self.schedule,ch=self.ch)
+        CharClassifyPlan.objects.filter(schedule=self.schedule,ch=self.ch).update(needcheck_cnt=result['needcheck_cnt'],
+                        total_cnt=result['total_cnt'])
+
 # class AccessRecord(models.Model):
 #     date = models.DateField()
 #     user_count = models.IntegerField()
@@ -469,77 +672,3 @@ class ActivityLog(models.Model):
 #         return "%s Access Record" % self.date.strftime('%Y-%m-%d')
 
 
-class TripiMixin(object):
-    def __str__(self):
-        return self.name
-
-
-class LQSutra(models.Model, TripiMixin):
-    code = models.CharField(verbose_name='龙泉经目编码', max_length=8, primary_key=True) #（为"LQ"+ 经序号 + 别本号）
-    name = models.CharField(verbose_name='龙泉经目名称', max_length=64, blank=False)
-    total_reels = models.IntegerField(verbose_name='总卷数', blank=True, default=1)
-
-    class Meta:
-        verbose_name = u"龙泉经目"
-        verbose_name_plural = u"龙泉经目管理"
-
-
-class Tripitaka(models.Model, TripiMixin):
-    code = models.CharField(verbose_name='实体藏经版本编码', primary_key=True, max_length=4, blank=False)
-    name = models.CharField(verbose_name='实体藏经名称', max_length=32, blank=False)
-
-    class Meta:
-        verbose_name = '实体藏经'
-        verbose_name_plural = '实体藏经管理'
-
-
-class Sutra(models.Model, TripiMixin):
-    sid = models.CharField(verbose_name='实体藏经|唯一经号编码', editable=True, max_length=32) # 藏经版本编码 + 5位经序号+1位别本号
-    tripitaka = models.ForeignKey(Tripitaka, related_name='sutras')
-    code = models.CharField(verbose_name='实体经目编码', max_length=5, blank=False)
-    variant_code = models.CharField(verbose_name='别本编码', max_length=1, default='0')
-    name = models.CharField(verbose_name='实体经目名称', max_length=64, blank=True)
-    lqsutra = models.ForeignKey(LQSutra, verbose_name='龙泉经目编码', null=True, blank=True) #（为"LQ"+ 经序号 + 别本号）
-    total_reels = models.IntegerField(verbose_name='总卷数', blank=True, default=1)
-
-    class Meta:
-        verbose_name = '实体经目'
-        verbose_name_plural = '实体经目管理'
-
-class Reel(models.Model):
-    sutra = models.ForeignKey(Sutra, related_name='reels')
-    sutra_no = models.CharField(verbose_name='经卷序号编码', max_length=3, blank=False)
-    code = models.CharField(verbose_name='实体藏经卷级总编码', max_length=32, blank=False)
-    ready = models.BooleanField(verbose_name='已准备好', default=False)
-    image_ready = models.BooleanField(verbose_name='图源状态', default=False)
-    image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
-    txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
-    cut_ready = models.BooleanField(verbose_name='切分数据状态', default=False)
-    column_ready = models.BooleanField(verbose_name='切列图状态', default=False)
-
-    class Meta:
-        verbose_name = '实体藏经卷'
-        verbose_name_plural = '实体藏经卷管理'
-
-class Page(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    reel = models.ForeignKey(Reel, related_name='pages')
-    reel_page_no = models.IntegerField(verbose_name='卷级页序号编码', default=1)
-    code = models.CharField(verbose_name='实体藏经页级总编码', max_length=64, blank=False)
-    vol_no = models.CharField(verbose_name='册序号编码', max_length=3, blank=False)
-    page_no = models.CharField(verbose_name='册级页序号编码', max_length=4, blank=False)
-    img_path = models.CharField(verbose_name='图片路径', max_length=128, blank=False)
-    ready = models.BooleanField(verbose_name='已准备好', default=False)
-    image_ready = models.BooleanField(verbose_name='图源状态', default=False)
-    image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
-    txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
-    cut_ready = models.BooleanField(verbose_name='切分数据状态', default=False)
-    column_ready = models.BooleanField(verbose_name='切列图状态', default=False)
-    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u'S3图片路径地址', upload_to='lqcharacters-images',
-                                storage='storages.backends.s3boto.S3BotoStorage')
-    def get_real_path(self):
-        return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/" + self.img_path
-
-    class Meta:
-        verbose_name = '实体藏经页'
-        verbose_name_plural = '实体藏经页管理'
