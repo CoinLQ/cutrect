@@ -248,6 +248,7 @@ class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     page = models.ForeignKey(Page, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
                              verbose_name=u'关联源页信息')
+    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='pagerects')
     op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
     line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数')
     column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数')
