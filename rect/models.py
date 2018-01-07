@@ -142,7 +142,7 @@ class Tripitaka(models.Model, TripiMixin):
 
 
 class Sutra(models.Model, TripiMixin):
-    sid = models.CharField(verbose_name='实体藏经|唯一经号编码', editable=True, max_length=10) # 藏经版本编码 + 5位经序号+1位别本号
+    sid = models.CharField(verbose_name='实体藏经|唯一经号编码', editable=True, max_length=10, primary_key=True) # 藏经版本编码 + 5位经序号+1位别本号
     tripitaka = models.ForeignKey(Tripitaka, related_name='sutras')
     code = models.CharField(verbose_name='实体经目编码', max_length=5, blank=False)
     variant_code = models.CharField(verbose_name='别本编码', max_length=1, default='0')
@@ -154,10 +154,15 @@ class Sutra(models.Model, TripiMixin):
         verbose_name = '实体经目'
         verbose_name_plural = '实体经目管理'
 
+    @property
+    def sutra_sn(self):
+        return "%s%s%s" % (self.tripitaka_id, self.code.zfill(5), self.variant_code)
+
+
 class Reel(models.Model):
+    rid = models.CharField(verbose_name='实体藏经卷级总编码', max_length=14, blank=False, primary_key=True)
     sutra = models.ForeignKey(Sutra, related_name='reels')
-    sutra_no = models.CharField(verbose_name='经卷序号编码', max_length=3, blank=False)
-    code = models.CharField(verbose_name='实体藏经卷级总编码', max_length=32, blank=False)
+    reel_no = models.CharField(verbose_name='经卷序号编码', max_length=3, blank=False)
     ready = models.BooleanField(verbose_name='已准备好', default=False)
     image_ready = models.BooleanField(verbose_name='图源状态', default=False)
     image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
@@ -169,13 +174,16 @@ class Reel(models.Model):
         verbose_name = '实体藏经卷'
         verbose_name_plural = '实体藏经卷管理'
 
+    @property
+    def reel_sn(self):
+        return "%sr%s" % (self.sutra_id, self.reel_no.zfill(3))
+
 class Page(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    pid = models.CharField(verbose_name='实体藏经页级总编码', max_length=21, blank=False, primary_key=True)
     reel = models.ForeignKey(Reel, related_name='pages')
-    reel_page_no = models.IntegerField(verbose_name='卷级页序号编码', default=1)
-    code = models.CharField(verbose_name='实体藏经页级总编码', max_length=64, blank=False)
+    bar_no = models.CharField(verbose_name='实体藏经页级栏序号', max_length=1, default='0')
     vol_no = models.CharField(verbose_name='册序号编码', max_length=3, blank=False)
-    page_no = models.CharField(verbose_name='册级页序号编码', max_length=4, blank=False)
+    page_no = models.IntegerField(verbose_name='册级页序号', default=1, blank=False)
     img_path = models.CharField(verbose_name='图片路径', max_length=128, blank=False)
     ready = models.BooleanField(verbose_name='已准备好', default=False)
     image_ready = models.BooleanField(verbose_name='图源状态', default=False)
@@ -186,27 +194,36 @@ class Page(models.Model):
     json = JSONField(default=dict)
     # s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u'S3图片路径地址', upload_to='lqcharacters-images',
     #                             storage='storages.backends.s3boto.S3BotoStorage')
+
     def get_real_path(self):
         return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/" + self.img_path
+
+    @property
+    def page_sn(self):
+        return "%sv%sp%04d%s" % (self.reel_id[0:-4], self.vol_no.zfill(3), self.page_no, self.bar_no)
 
     class Meta:
         verbose_name = '实体藏经页'
         verbose_name_plural = '实体藏经页管理'
 
 class OColumn(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    oclid = models.CharField(max_length=25, primary_key=True, verbose_name=u'页的切列编码')
     page = models.ForeignKey(Page, blank=True, null=True, related_name='ocolumns', on_delete=models.CASCADE,
                              verbose_name=u'原始页')
-    code = models.CharField(max_length=64, db_index=True, unique=True, verbose_name=u'页的切列编码')
+    line_no = models.PositiveSmallIntegerField(blank=False, verbose_name=u'行号', default=1)  # 对应图片的一列
     x = models.PositiveSmallIntegerField(verbose_name=u'坐标x', default=0)
     y = models.PositiveSmallIntegerField(verbose_name=u'坐标y', default=0)
     s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
                                 storage='storages.backends.s3boto.S3BotoStorage')
 
+    @property
+    def ocolumn_sn(self):
+        return "%s%02d" % (self.page_id, self.line_no)
+
     class Meta:
         verbose_name = u"原始页"
         verbose_name_plural = u"原始页管理"
-        ordering = ('code', )
+        ordering = ('oclid', )
 
     @property
     def s3_uri(self):
@@ -231,11 +248,11 @@ class PageRect(models.Model):
     page = models.ForeignKey(Page, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
                              verbose_name=u'关联源页信息')
     op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
-    code = models.CharField(max_length=64, null=True, verbose_name=u'关联源页CODE') # Eg. GLZ_K1000_S0001_V0001_P0001
     line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数')
     column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数')
     rect_set = JSONField(default=list, verbose_name=u'切字块JSON切分数据集')
     created_at = models.DateTimeField(null=True, blank=True, verbose_name=u'创建时间', auto_now_add=True)
+    primary = models.BooleanField(verbose_name="主切分方案", default=True)
 
     def __str__(self):
         return str(self.id)
@@ -260,27 +277,30 @@ class PageRect(models.Model):
 
 
 class Rect(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    cid = models.CharField(null=True, blank=True, verbose_name=u'经字号', max_length=40, default='')
-    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects')
+    cid = models.CharField(verbose_name=u'经字号', max_length=28, primary_key=True)
+    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects') # auto_trigger
+    page_code = models.CharField(max_length=23, blank=False, verbose_name=u'关联源页CODE')
+    column_code = models.CharField(max_length=25, null=True, verbose_name=u'关联源页切列图CODE') # auto_trigger
+    char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
+    line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 对应图片的一列
+
     op = models.PositiveSmallIntegerField(verbose_name=u'操作类型', default=OpStatus.NORMAL)
     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
     w = models.IntegerField(verbose_name=u'宽度', default=1)
     h = models.IntegerField(verbose_name=u'高度', default=1)
-    char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
-    line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 对应图片的一列
-    cc = models.FloatField(null=True, blank=True, verbose_name=u'切分置信度', default=1)
+
+    cc = models.FloatField(null=True, blank=True, verbose_name=u'切分置信度', db_index=True, default=1)
     ch = models.CharField(null=True, blank=True, verbose_name=u'文字', max_length=2, default='', db_index=True)
     wcc = models.FloatField(null=True, blank=True, verbose_name=u'识别置信度', default=1, db_index=True)
     ts = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=2, default='')
-    page_rect = models.ForeignKey(PageRect, null=True, blank=True, related_name='rects', on_delete=models.SET_NULL,
-                                  verbose_name=u'源页切分集') # 数据重要不级联删除, 使用业务逻辑过滤删除.
     s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
                                   storage='storages.backends.s3boto.S3BotoStorage')
-    pcode = models.CharField(max_length=64, null=True, verbose_name=u'关联源页CODE')
-
     updated_at = models.DateTimeField(verbose_name='更新时间', auto_now=True)
+
+    @property
+    def rect_sn(self):
+        return "%s%02dn%02d" % (self.page_code, self.line_no, self.char_no)
 
     def __str__(self):
         return self.ch
@@ -304,7 +324,7 @@ class Rect(models.Model):
         rect.char_no = getVal('char_no')
         rect.line_no = getVal('line_no')
         rect.cc = getVal('cc')
-        rect.c_conf = getVal('c_conf')
+        rect.wcc = getVal('wcc')
         rect.ch = getVal('ch')
         return rect
 
@@ -328,8 +348,10 @@ def positive_w_h_fields(sender, instance, **kwargs):
     if (instance.h == 0):
         instance.h = 1
 
+
 class Patch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='patches') # 注意：卷编码这里没有考虑余量
     op = models.PositiveSmallIntegerField(verbose_name=u'操作类型', default=OpStatus.NORMAL)
     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
@@ -368,7 +390,6 @@ class Schedule(models.Model):
     reels = models.ManyToManyField(Reel)
     schedule_no = models.CharField(max_length=64, verbose_name=u'切分计划批次', default='')
     cc_threshold = models.FloatField("切分置信度阈值", default=0.65)
-    wcc_threshold = models.FloatField("聚类置信度阈值", default=0.75)
 
     # todo 设置总任务的优先级时, 子任务包的优先级凡是小于总任务优先级的都提升优先级, 高于或等于的不处理. 保持原优先级.
     priority = models.PositiveSmallIntegerField(
@@ -464,12 +485,13 @@ class Task(models.Model):
     priority = models.PositiveSmallIntegerField(
         choices=PriorityLevel.CHOICES,
         default=PriorityLevel.MIDDLE,
-        verbose_name=u'任务状态',
+        verbose_name=u'任务优先级',
+        db_index=True,
     )
     update_date = models.DateField(null=True, verbose_name=u'最近处理时间')
 
-    # def __str__(self):
-    #     return self.number
+    def __str__(self):
+        return self.number
 
     @classmethod
     def serialize_set(cls, dataset):
