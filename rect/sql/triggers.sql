@@ -95,7 +95,7 @@ $fn_gen_lid$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS fn_gen_lid ON rect_ocolumn;
 CREATE TRIGGER fn_gen_lid
-    BEFORE INSERT ON rect_ocolumn
+    BEFORE INSERT OR UPDATE ON rect_ocolumn
             FOR EACH ROW
             EXECUTE PROCEDURE fn_gen_lid();
 
@@ -109,6 +109,6 @@ $fn_gen_cid$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS fn_gen_cid ON rect_rect;
 CREATE TRIGGER fn_gen_cid
-    BEFORE INSERT ON rect_rect
+    BEFORE INSERT OR UPDATE ON rect_rect
             FOR EACH ROW
             EXECUTE PROCEDURE fn_gen_cid();

@@ -40,4 +40,5 @@ django-celery-results==1.0.1
 jwt_auth==0.2.8
 psycopg2==2.7.3
 django-jsonfield==1.0.1
+django-bulk-update==2.2.0
 

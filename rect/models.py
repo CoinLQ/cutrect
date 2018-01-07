@@ -15,7 +15,7 @@ import json
 from jsonfield import JSONField
 from django.db import connection
 from django.db.models import Sum, Case, When, Value, Count, Avg
-
+from django_bulk_update.manager import BulkUpdateManager
 
 db_storage = DatabaseFileStorage()
 
@@ -207,6 +207,7 @@ class Page(models.Model):
         verbose_name_plural = '实体藏经页管理'
 
 class OColumn(models.Model):
+
     oclid = models.CharField(max_length=25, primary_key=True, verbose_name=u'页的切列编码')
     page = models.ForeignKey(Page, blank=True, null=True, related_name='ocolumns', on_delete=models.CASCADE,
                              verbose_name=u'原始页')
@@ -277,7 +278,12 @@ class PageRect(models.Model):
 
 
 class Rect(models.Model):
-    cid = models.CharField(verbose_name=u'经字号', max_length=28, primary_key=True)
+    # https://github.com/aykut/django-bulk-update
+    objects = BulkUpdateManager()
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    cid = models.CharField(verbose_name=u'经字号', max_length=28, db_index=True)
     reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects') # auto_trigger
     page_code = models.CharField(max_length=23, blank=False, verbose_name=u'关联源页CODE')
     column_code = models.CharField(max_length=25, null=True, verbose_name=u'关联源页切列图CODE') # auto_trigger
