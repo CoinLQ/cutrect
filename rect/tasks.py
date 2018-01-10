@@ -3,26 +3,26 @@ from __future__ import absolute_import, unicode_literals
 from celery import shared_task
 from django.contrib.contenttypes.models import ContentType
 from rect.utils import parseBatch, allocateTasks
-from rect.models import Batch, Schedule
+from rect.models import Schedule
 from setting import celery_app
 import os
 from django.dispatch import receiver
 from django.db import models
 
-@receiver(models.signals.post_save, sender=Batch)
-def after_create_batch(sender, instance, created, **kwargs):
-    if created:
-        parseBatchToPageRect(batchId=instance.id) #todo 1223 调试暂时不异步执行.
-        #parseBatchToPageRect.delay(batchId=instance.id)
+# @receiver(models.signals.post_save, sender=Batch)
+# def after_create_batch(sender, instance, created, **kwargs):
+#     if created:
+#         parseBatchToPageRect(batchId=instance.id)
 
 
-@shared_task
-def parseBatchToPageRect(batchId=''):
-    # 校验url是否正确
-    if batchId:
-        batch = Batch.objects.get(id=batchId)
-        if batch:
-            parseBatch(batch)
+
+# @shared_task
+# def parseBatchToPageRect(batchId=''):
+#     # 校验url是否正确
+#     if batchId:
+#         batch = Batch.objects.get(id=batchId)
+#         if batch:
+#             parseBatch(batch)
 
 
 @receiver(models.signals.post_save, sender=Schedule)

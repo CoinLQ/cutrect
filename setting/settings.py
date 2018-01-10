@@ -84,7 +84,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rect',
     'storages',
-    'celery',
+    # 'celery',
     #'kombu.transport.django', #http://blog.csdn.net/samed/article/details/50598371
 
 ]
@@ -137,13 +137,13 @@ WSGI_APPLICATION = 'setting.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'cutrect',
-        'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'mysql_tripitaka',
-        'PORT': '3307',
-        'OPTIONS': {'charset': 'utf8mb4', 'init_command': 'SET default_storage_engine=InnoDB'}
+        'USER': 'lqzj',
+        'PASSWORD': 'lqdzjsql',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
+
     },
     # 'test': {
     #     'ENGINE': 'django.db.backends.sqlite3',

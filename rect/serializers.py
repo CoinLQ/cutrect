@@ -29,7 +29,7 @@ class PageRectSerializer(serializers.HyperlinkedModelSerializer):
         fields = '__all__'
 
 
-class BatchSerializer(serializers.HyperlinkedModelSerializer):
+class ReelSerializer(serializers.HyperlinkedModelSerializer):
     pagerects = PageRectSerializer(many=True)
 
     def to_representation(self, instance):
@@ -45,7 +45,7 @@ class BatchSerializer(serializers.HyperlinkedModelSerializer):
         return super().to_representation(instance)
 
     class Meta:
-        model = Batch
+        model = Reel
         fields = '__all__'
 
 
@@ -84,9 +84,9 @@ class OColumnSerializer(serializers.ModelSerializer):
         model = OColumn
         fields = '__all__'
 
-class OPageSerializer(serializers.ModelSerializer):
+class PageSerializer(serializers.ModelSerializer):
     class Meta:
-        model = OPage
+        model = Page
         fields = '__all__'
 
 

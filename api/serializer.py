@@ -5,8 +5,8 @@ from rect.models import Rect, OColumn, PageRect
 class RectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rect
-        fields = ('cncode', 'w', 'cn', 'word', 'wcc', 'op', 'cc',
-                  'x', 'id', 'ts', 'ln', 'h', 'y')
+        fields = ('cncode', 'w', 'line_no', 'ch', 'wcc', 'op', 'cc',
+                  'x', 'id', 'ts', 'char_no', 'h', 'y')
 
 
 class OColumnSerializer(serializers.ModelSerializer):
