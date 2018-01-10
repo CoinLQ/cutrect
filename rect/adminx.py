@@ -21,7 +21,7 @@ class MainDashboard(object):
             {"type": "html", "title": u"大藏经", "content": "<h3> 欢迎来到龙泉大藏经切分管理平台 </h3><p>加入我们，@longquan</p>"},
         ],
         [
-            {"type": "list", "model": "rect.Schedule", "params": {"o": "-create_date"}},
+            {"type": "list", "model": "rect.Schedule", "params": {"o": "-created_at"}},
             {"type": "addform", "model": Schedule}
         ]
     ]
@@ -40,15 +40,10 @@ class BaseSetting(object):
 class GlobalSetting(object):
     global_search_models = [Schedule]
     global_models_icon = {
-        PageRect: "fa fa-pagelines", Schedule: "fa fa-laptop" #, Task: "fa fa-bars"
+        PageRect: "fa fa-pagelines", Schedule: "fa fa-laptop", #, Task: "fa fa-bars"
+        Tripitaka: "fa fa-align-justify", LQSutra: "fa fa-file-text-o", Sutra: "fa fa-file-text-o"
     }
     menu_style = 'default'  # 'accordion'
-
-
-# class PageResourceInline(object):
-#     model = PageResource
-#     extra = 1
-#     style = "accordion"
 
 
 '''
@@ -57,11 +52,11 @@ class GlobalSetting(object):
 
 @xadmin.sites.register(PageRect)
 class PageRectAdmin(object):
-    list_display = ("id", "page", "line_count", "column_count", "rect_set", "create_date", "batch")
+    list_display = ("id", "page", "line_count", "column_count", "rect_set", "created_at")
     list_display_links = ("id",)
-    list_filter = ("page", 'create_date', 'batch')
+    list_filter = ("page", 'created_at')
     search_fields = ["id" ]
-    date_hierarchy = 'create_date'  # 详细时间分层筛选
+    date_hierarchy = 'created_at'  # 详细时间分层筛选
     relfield_style = "fk-select"
     reversion_enable = True
 
@@ -79,13 +74,64 @@ class ScheduleAdmin(object):
     remain_task_count.allow_tags = True
     remain_task_count.is_column = True
 
-    list_display = ("name", "batch", "type", 'remain_task_count', "status", "end_date", 'create_date')
+    list_display = ("name",  "status", "due_at", 'created_at')
     list_display_links = ("name", "status")
-    list_filter = ("batch", 'type', 'status', 'end_date', 'create_date')
+    list_filter = ('status', 'due_at', 'created_at')
     search_fields = ["name" ]
-    date_hierarchy = 'end_date'
+    date_hierarchy = 'due_at'
     relfield_style = "fk-select"
     reversion_enable = True
+    style_fields = {'reels': 'm2m_transfer'}
+
+
+@xadmin.sites.register(LQSutra)
+class LQSutraAdmin(object):
+    list_display = ('name', 'code', 'total_reels')
+    list_display_links = ('code',)
+
+    search_fields = ('name', 'code')
+    list_editable = ('total_reels',)
+    list_filter = ('name', 'code')
+
+
+@xadmin.sites.register(Tripitaka)
+class TripitakaAdmin(object):
+    list_display = ('name', 'code')
+    list_display_links = ('code',)
+
+    search_fields = ('name', 'code')
+    list_editable = ('name',)
+    list_filter = ('name', 'code')
+
+@xadmin.sites.register(Sutra)
+class SutraAdmin(object):
+    list_display = ('name', 'code', 'total_reels')
+    list_display_links = ('code',)
+
+    search_fields = ('name', 'code')
+    list_editable = ('total_reels',)
+    list_filter = ('name', 'code')
+
+@xadmin.sites.register(Schedule_Task_Statistical)
+class Schedule_Task_StatisticalAdmin(object):
+    list_display = ('schedule', 'amount_of_cctasks', 'completed_cctasks', 'amount_of_classifytasks',
+        'completed_classifytasks', 'amount_of_absenttasks', 'completed_absenttasks', 'amount_of_pptasks',
+        'completed_pptasks', 'amount_of_vdeltasks', 'completed_vdeltasks', 'amount_of_reviewtasks',
+        'completed_reviewtasks', 'remark', 'updated_at')
+    list_display_links = ('completed_cctasks',)
+    search_fields = ('schedule',)
+    list_editable = ('remark',)
+    list_filter = ('completed_cctasks',)
+
+
+@xadmin.sites.register(Reel_Task_Statistical)
+class Reel_Task_StatisticalAdmin(object):
+    list_display = ('schedule', 'reel', 'amount_of_cctasks', 'completed_cctasks',
+        'amount_of_absenttasks', 'completed_absenttasks', 'amount_of_pptasks',
+        'completed_pptasks', 'updated_at')
+    list_display_links = ('completed_cctasks', 'reel')
+    search_fields = ('schedule', 'reel')
+    list_filter = ('completed_cctasks',)
 
 
 # @xadmin.sites.register(Task)

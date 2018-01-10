@@ -5,7 +5,7 @@ from django.db import models
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 import uuid
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from db_file_storage.storage import DatabaseFileStorage
 from jwt_auth.models import Staff
@@ -121,6 +121,17 @@ class TripiMixin(object):
     def __str__(self):
         return self.name
 
+class Node(models.Model):
+    name = models.CharField(u"名称", max_length=64)
+    code = models.CharField(u"节点代码", max_length=27, primary_key=True)
+    parent = models.ForeignKey('self', verbose_name=u'父节点', related_name='children', null=True, blank=True)
+
+    class Meta:
+        verbose_name=u'节点'
+        verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return self.name +":" +self.code
 
 class LQSutra(models.Model, TripiMixin):
     code = models.CharField(verbose_name='龙泉经目编码', max_length=8, primary_key=True) #（为"LQ"+ 经序号 + 别本号）
@@ -177,6 +188,13 @@ class Reel(models.Model):
     @property
     def reel_sn(self):
         return "%sr%s" % (self.sutra_id, self.reel_no.zfill(3))
+
+    @property
+    def name(self):
+        return u"第%s卷" %(self.reel_no,)
+
+    def __str__(self):
+        return self.sutra.name + self.rid
 
 class Page(models.Model):
     pid = models.CharField(verbose_name='实体藏经页级总编码', max_length=21, blank=False, primary_key=True)
@@ -355,6 +373,22 @@ def positive_w_h_fields(sender, instance, **kwargs):
     if (instance.h == 0):
         instance.h = 1
 
+@receiver(post_save)
+def create_new_node(sender, instance, created, **kwargs):
+    if sender==LQSutra:
+        Node(code=instance.code, name=instance.name).save()
+
+    if sender==Sutra:
+        if created:
+            Node(code=instance.sutra_sn, name=instance.name, parent_id=instance.lqsutra_id).save()
+        else:
+            Node.objects.filter(pk=instance.sutra_sn).update(parent_id=instance.lqsutra_id)
+    if sender==Reel:
+        if created:
+            Node(code=instance.reel_sn, name=instance.name, parent_id=instance.sutra_id).save()
+        else:
+            Node.objects.filter(pk=instance.reel_sn).update(parent_id=instance.sutra_id)
+
 
 class Patch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -394,10 +428,10 @@ class Patch(models.Model):
 
 class Schedule(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    reels = models.ManyToManyField(Reel)
-    schedule_no = models.CharField(max_length=64, verbose_name=u'切分计划批次', default='')
+    reels = models.ManyToManyField(Reel, limit_choices_to={'cut_ready': False} ) # FXIME: 为了测试方便，先放宽切分数据准备状态
+    schedule_no = models.CharField(max_length=64, verbose_name=u'切分计划批次', default='', help_text=u'PN日期序列')
     cc_threshold = models.FloatField("切分置信度阈值", default=0.65)
-
+    name = models.CharField(verbose_name='计划名称', max_length=64, blank=True)
     # todo 设置总任务的优先级时, 子任务包的优先级凡是小于总任务优先级的都提升优先级, 高于或等于的不处理. 保持原优先级.
     priority = models.PositiveSmallIntegerField(
         choices=PriorityLevel.CHOICES,
@@ -419,10 +453,24 @@ class Schedule(models.Model):
     def __str__(self):
         return self.name
 
+    def create_reels_task(self):
+        # NOTICE: 实际这里不工作，多重关联这时并未创建成功。
+        # 在数据库层用存储过程在关联表记录创建后，创建卷任务。
+        tasks = []
+        for reel in self.reels.all():
+            tasks.append(Reel_Task_Statistical(schedule=self, reel=reel))
+        Reel_Task_Statistical.objects.bulk_create(tasks)
+
     class Meta:
         verbose_name = u"切分计划"
         verbose_name_plural = u"切分计划管理"
         ordering = ('due_at', "status")
+
+@receiver(post_save, sender=Schedule)
+def post_schedule_create_pretables(sender, instance, created, **kwargs):
+    if created:
+        Schedule_Task_Statistical(schedule=instance).save()
+        instance.create_reels_task()
 
 
 def activity_log(func):
@@ -455,6 +503,10 @@ class Schedule_Task_Statistical(models.Model):
     remark = models.TextField(max_length=256, null=True, blank=True, verbose_name=u'备注', default= '')
     updated_at = models.DateTimeField('更新时间', auto_now=True)
 
+    class Meta:
+        verbose_name = u"切分计划任务统计"
+        verbose_name_plural = u"切分计划任务统计管理"
+        ordering = ('schedule', )
 
 class Reel_Task_Statistical(models.Model):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='schedule_reel_task_statis',
@@ -469,7 +521,10 @@ class Reel_Task_Statistical(models.Model):
 
     updated_at = models.DateTimeField('更新时间', auto_now=True)
 
-
+    class Meta:
+        verbose_name = u"实体卷任务统计"
+        verbose_name_plural = u"实体卷任务统计管理"
+        ordering = ('schedule', 'reel')
 class Task(models.Model):
     '''
     切分校对计划的任务实例

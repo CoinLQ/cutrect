@@ -106,3 +106,5 @@ test/
 static/
 *.sqlite
 data/
+xapps/common/views/upload_view_bak.py
+sutra.sqlite3

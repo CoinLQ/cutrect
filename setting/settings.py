@@ -84,6 +84,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'rect',
     'storages',
+    'sutra',
+    'xapps',
+    #'xcms'
     # 'celery',
     #'kombu.transport.django', #http://blog.csdn.net/samed/article/details/50598371
 
@@ -240,6 +243,9 @@ LOGGING = {
 # In a Windows environment this must be set to your system time zone.
 TIME_ZONE = 'Asia/Shanghai'  # 'UTC'
 
+DATE_FORMAT = 'Y-m-d'
+DATETIME_FORMAT = 'Y-m-d H:i'
+TIME_FORMAT = 'H:i'
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGE_CODE = 'zh-Hans'  # 'en-us'
@@ -296,8 +302,10 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 #     # Don't forget to use absolute paths, not relative paths.
 # )
 # Add for vuejs
+
 STATICFILES_DIRS = [
     os.path.join(PROJECT_ROOT, 'frontend/build'),
+    os.path.join(PROJECT_ROOT, 'xcms/static/xcms'),
 ]
 
 # List of finder classes that know how to find static files in

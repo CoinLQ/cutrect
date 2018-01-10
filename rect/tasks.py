@@ -25,11 +25,6 @@ from django.db import models
 #             parseBatch(batch)
 
 
-@receiver(models.signals.post_save, sender=Schedule)
-def after_create_schedule(sender, instance, created, **kwargs):
-    if created:
-        allocateTasksBySchedule(scheduleId=instance.id) #todo 1223 调试暂时不异步执行.
-        #allocateTasksBySchedule.delay(scheduleId=instance.id)
 
 
 @shared_task

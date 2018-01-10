@@ -8,8 +8,6 @@ from .views.rects import PageRectViewSet, RectViewSet, \
 from .views.tasks import CCTaskViewSet, ClassifyTaskViewSet, \
                          PageTaskViewSet
 
-from xadmin.plugins import xversion
-xversion.register_models()
 
 rectRouter = routers.DefaultRouter()
 rectRouter.register(r'pagerect', PageRectViewSet)
