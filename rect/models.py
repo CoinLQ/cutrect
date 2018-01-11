@@ -7,17 +7,31 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 import uuid
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from db_file_storage.storage import DatabaseFileStorage
 from jwt_auth.models import Staff
 from django.utils.timezone import localtime, now
 from functools import wraps
 import json
+import urllib.request
 from jsonfield import JSONField
 from django.db import connection
 from django.db.models import Sum, Case, When, Value, Count, Avg
 from django_bulk_update.manager import BulkUpdateManager
+from .lib.arrange_rect import ArrangeRect
+from dotmap import DotMap
 
-db_storage = DatabaseFileStorage()
+def iterable(cls):
+    """
+    model的迭代器并输出dict，且不包含内部__,_开头的key
+    """
+    @wraps(cls)
+    def iterfn(self):
+        iters = dict((k, v) for k, v in self.__dict__.items() if not k.startswith("_"))
+
+        for k, v in iters.items():
+            yield k, v
+
+    cls.__iter__ = iterfn
+    return cls
 
 class ORGGroup(object):
     ALI = 0
@@ -57,7 +71,26 @@ class ScheduleStatus:
         (COMPLETED, u'已完成'),
     )
 
+class PageStatus:
+    INITIAL = 0
+    RECT_NOTFOUND = 1
+    PARSE_FAILED = 2
+    RECT_NOTREADY = 3
+    CUT_PIC_NOTFOUND = 4
+    COL_PIC_NOTFOUND = 5
+    COL_POS_NOTFOUND = 6
 
+    READY = 7
+    CHOICES = (
+        (INITIAL, u'初始化'),
+        (RECT_NOTFOUND, u'切分数据未上传'),
+        (PARSE_FAILED, u'数据解析失败'),
+        (RECT_NOTREADY, u'字块数据未展开'),
+        (CUT_PIC_NOTFOUND, u'图片不存在'),
+        (COL_PIC_NOTFOUND, u'列图不存在'),
+        (COL_POS_NOTFOUND, u'列图坐标不存在'),
+        (READY, u'已准备好'),
+    )
 class TaskStatus:
     NOT_GOT = 0
     EXPIRED = 1
@@ -174,7 +207,7 @@ class Reel(models.Model):
     rid = models.CharField(verbose_name='实体藏经卷级总编码', max_length=14, blank=False, primary_key=True)
     sutra = models.ForeignKey(Sutra, related_name='reels')
     reel_no = models.CharField(verbose_name='经卷序号编码', max_length=3, blank=False)
-    ready = models.BooleanField(verbose_name='已准备好', default=False)
+    ready = models.BooleanField(verbose_name='已准备好', db_index=True, default=False)
     image_ready = models.BooleanField(verbose_name='图源状态', default=False)
     image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
     txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
@@ -203,18 +236,46 @@ class Page(models.Model):
     vol_no = models.CharField(verbose_name='册序号编码', max_length=3, blank=False)
     page_no = models.IntegerField(verbose_name='册级页序号', default=1, blank=False)
     img_path = models.CharField(verbose_name='图片路径', max_length=128, blank=False)
-    ready = models.BooleanField(verbose_name='已准备好', default=False)
-    image_ready = models.BooleanField(verbose_name='图源状态', default=False)
-    image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
-    txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
-    cut_ready = models.BooleanField(verbose_name='切分数据状态', default=False)
-    column_ready = models.BooleanField(verbose_name='切列图状态', default=False)
+    status = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型',
+                                              choices=PageStatus.CHOICES, default=PageStatus.INITIAL)
     json = JSONField(default=dict)
+    updated_at = models.DateTimeField(verbose_name='更新时间', auto_now=True)
     # s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u'S3图片路径地址', upload_to='lqcharacters-images',
     #                             storage='storages.backends.s3boto.S3BotoStorage')
 
     def get_real_path(self):
+        # FIXME: 暂时这么写可以，写死了，GEO CDN就失效了。
         return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/" + self.img_path
+
+    def down_pagerect(self):
+        cut_file = self.get_real_path()[0:-3] + "cut"
+        opener = urllib.request.build_opener()
+        try:
+            response = opener.open(cut_file)
+        except urllib.error.HTTPError as e:
+            # 下载失败
+            print(self.pid + ": rect download failed")
+            self.status = PageStatus.RECT_NOTFOUND
+            self.save(update_fields=['status'])
+            return
+        try:
+            body = response.read().decode('utf8')
+            json_data = json.loads(body)
+            if json_data['page_code'] == self.pid and json_data['reel_no'] == self.reel_id \
+                and type(json_data['char_data'])==list :
+                pass
+        except:
+            print(self.pid + ": rect parse failed")
+            print("CONTENT:" + body)
+            self.json = {"content": body}
+            self.status = PageStatus.PARSE_FAILED
+            self.save(update_fields=['status', 'json'])
+            return
+        self.pagerects.all().delete()
+        PageRect(page=self, reel=self.reel, line_count=0, column_count=0, rect_set=json_data['char_data']).save()
+        self.status = PageStatus.RECT_NOTREADY
+        self.save(update_fields=['status'])
+        print(self.pid + ": pagerect saved")
 
     @property
     def page_sn(self):
@@ -268,8 +329,8 @@ class PageRect(models.Model):
                              verbose_name=u'关联源页信息')
     reel = models.ForeignKey(Reel, null=True, blank=True, related_name='pagerects')
     op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
-    line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数')
-    column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数')
+    line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数') # 最大文本行号
+    column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数') # 最大文本长度
     rect_set = JSONField(default=list, verbose_name=u'切字块JSON切分数据集')
     created_at = models.DateTimeField(null=True, blank=True, verbose_name=u'创建时间', auto_now_add=True)
     primary = models.BooleanField(verbose_name="主切分方案", default=True)
@@ -286,16 +347,46 @@ class PageRect(models.Model):
     def s3_uri(self):
         return self.page.s3_inset.name
 
-    @property
-    def json_rects(self):
-        return json.loads(self.rect_set)
+    def rebuild_rect(self):
+        if len(self.rect_set) == 0:
+            return
+        cids = list(map(lambda X: X["char_id"], self.rect_set))
+        Rect.objects.filter(reel=self.reel, cid__in=cids).all().delete()
+        rect_list = list()
+        columns, column_len = ArrangeRect.resort_rects_from_list(self.rect_set)
+        for lin_n, line in columns.items():
+            for col_n, _rect in enumerate(line, start=1):
+                _rect['line_no'] = lin_n
+                _rect['char_no'] = col_n
+                rect = Rect.generate(_rect)
+                rect.reel = self.reel
+                rect.page_code = self.page_id
+                rect_list.append(rect)
+        Rect.objects.bulk_create(rect_list)
+        self.line_count = max(map(lambda Y: Y.line_no, rect_list))
+        self.column_count = max(map(lambda Y: Y.char_no, rect_list))
+        self.save()
 
-    @json_rects.setter
-    def json_rects(self, value):
-        self.rect_set = json.dumps(value, ensure_ascii=False)
+    @classmethod
+    def reformat_rects(cls, page_id):
+        rects = Rect.objects.filter(page_code=page_id).all()
+        if rects.count() == 0:
+            return
+        columns, column_len = ArrangeRect.resort_rects_from_qs(rects)
+        rect_list = list()
+        for lin_n, line in columns.items():
+            for col_n, _rect in enumerate(line, start=1):
+                _rect['line_no'] = lin_n
+                _rect['char_no'] = col_n
+                rect = Rect.generate(_rect)
+                rect_list.append(rect)
+        Rect.objects.bulk_update(rect_list)
+        pagerect = PageRect.objects.filter(page_id=page_id).first()
+        pagerect.line_count = max(map(lambda Y: Y.line_no, rect_list))
+        pagerect.column_count = max(map(lambda Y: Y.char_no, rect_list))
+        pagerect.save()
 
-
-
+@iterable
 class Rect(models.Model):
     # https://github.com/aykut/django-bulk-update
     objects = BulkUpdateManager()
@@ -303,8 +394,8 @@ class Rect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     cid = models.CharField(verbose_name=u'经字号', max_length=28, db_index=True)
-    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects') # auto_trigger
-    page_code = models.CharField(max_length=23, blank=False, verbose_name=u'关联源页CODE')
+    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects')
+    page_code = models.CharField(max_length=23, blank=False, verbose_name=u'关联源页CODE', db_index = True)
     column_code = models.CharField(max_length=25, null=True, verbose_name=u'关联源页切列图CODE') # auto_trigger
     char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
     line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 对应图片的一列
@@ -332,11 +423,7 @@ class Rect(models.Model):
 
     @property
     def cncode(self):
-        return "{0}_L{1:02}".format(self.pcode, self.line_no)
-
-    @property
-    def rectcode(self):
-        return "{0}_Z{1:02}".format(self.cncode, self.char_no)
+        return "%s%02d" % (self.page_code, self.line_no)
 
     @staticmethod
     def generate(dict={}):
@@ -350,8 +437,24 @@ class Rect(models.Model):
         rect.line_no = getVal('line_no')
         rect.cc = getVal('cc')
         rect.wcc = getVal('wcc')
-        rect.ch = getVal('ch')
+        rect.ch = getVal('char')
+        rect = Rect.normalize(rect)
         return rect
+
+    @staticmethod
+    def normalize(instance):
+        if (instance.w < 0):
+            instance.x = instance.x + instance.w
+            instance.w = abs(instance.w)
+        if (instance.h < 0):
+            instance.y = instance.y + instance.h
+            instance.h = abs(instance.h)
+
+        if (instance.w == 0):
+            instance.w = 1
+        if (instance.h == 0):
+            instance.h = 1
+        return instance
 
     class Meta:
         verbose_name = u"源-切字块"
@@ -361,17 +464,7 @@ class Rect(models.Model):
 
 @receiver(pre_save, sender=Rect)
 def positive_w_h_fields(sender, instance, **kwargs):
-    if (instance.w < 0):
-        instance.x = instance.x + instance.w
-        instance.w = abs(instance.w)
-    if (instance.h < 0):
-        instance.y = instance.y + instance.h
-        instance.h = abs(instance.h)
-
-    if (instance.w == 0):
-        instance.w = 1
-    if (instance.h == 0):
-        instance.h = 1
+    instance = Rect.normalize(instance)
 
 @receiver(post_save)
 def create_new_node(sender, instance, created, **kwargs):
