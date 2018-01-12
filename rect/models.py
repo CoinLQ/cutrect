@@ -79,8 +79,11 @@ class PageStatus:
     CUT_PIC_NOTFOUND = 4
     COL_PIC_NOTFOUND = 5
     COL_POS_NOTFOUND = 6
+    RECT_COL_NOTREADY = 7
+    RECT_COL_NOTFOUND = 8
+    READY = 9
+    MARKED = 10
 
-    READY = 7
     CHOICES = (
         (INITIAL, u'初始化'),
         (RECT_NOTFOUND, u'切分数据未上传'),
@@ -89,7 +92,10 @@ class PageStatus:
         (CUT_PIC_NOTFOUND, u'图片不存在'),
         (COL_PIC_NOTFOUND, u'列图不存在'),
         (COL_POS_NOTFOUND, u'列图坐标不存在'),
+        (RECT_COL_NOTREADY, u'字块对应列图未准备'),
+        (RECT_COL_NOTFOUND, u'字块对应列图不存在'),
         (READY, u'已准备好'),
+        (MARKED, u'已入卷标记'),
     )
 class TaskStatus:
     NOT_GOT = 0
@@ -247,6 +253,31 @@ class Page(models.Model):
         # FIXME: 暂时这么写可以，写死了，GEO CDN就失效了。
         return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/" + self.img_path
 
+    def down_col_pos(self):
+        cut_file = self.get_real_path()[0:-3] + "col"
+        opener = urllib.request.build_opener()
+        try:
+            response = opener.open(cut_file)
+        except urllib.error.HTTPError as e:
+            # 下载失败
+            print(self.pid + ": col download failed")
+            return
+        try:
+            body = response.read().decode('utf8')
+            json_data = json.loads(body)
+            if json_data['page_code'] == self.pid and json_data['reel_no'] == self.reel_id \
+                and type(json_data['col_data'])==list :
+                self.status = PageStatus.RECT_COL_NOTREADY
+                self.json = json_data['col_data']
+                self.save()
+        except:
+            print(self.pid + ": col parse failed")
+            print("CONTENT:" + body)
+            self.json = {"content": body}
+            self.status = PageStatus.COL_POS_NOTFOUND
+            self.save(update_fields=['status', 'json'])
+            return
+
     def down_pagerect(self):
         cut_file = self.get_real_path()[0:-3] + "cut"
         opener = urllib.request.build_opener()
@@ -369,9 +400,11 @@ class PageRect(models.Model):
 
     @classmethod
     def reformat_rects(cls, page_id):
+        ret = True
         rects = Rect.objects.filter(page_code=page_id).all()
+        page = Page.objects.get(pk=page_id)
         if rects.count() == 0:
-            return
+            return ret
         columns, column_len = ArrangeRect.resort_rects_from_qs(rects)
         rect_list = list()
         for lin_n, line in columns.items():
@@ -379,12 +412,20 @@ class PageRect(models.Model):
                 _rect['line_no'] = lin_n
                 _rect['char_no'] = col_n
                 rect = Rect.generate(_rect)
+                rect.reel_id = page.reel_id
+                rect.page_code = page_id
+                try :
+                    rect.column_set = next((item for item in page.json if item["col_id"] == rect.cncode))
+                except:
+                    ret = False
+                    print(rect.cncode + ': col_pos doesn\'t exist!')
                 rect_list.append(rect)
         Rect.objects.bulk_update(rect_list)
         pagerect = PageRect.objects.filter(page_id=page_id).first()
         pagerect.line_count = max(map(lambda Y: Y.line_no, rect_list))
         pagerect.column_count = max(map(lambda Y: Y.char_no, rect_list))
         pagerect.save()
+        return ret
 
 @iterable
 class Rect(models.Model):
@@ -397,6 +438,7 @@ class Rect(models.Model):
     reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects')
     page_code = models.CharField(max_length=23, blank=False, verbose_name=u'关联源页CODE', db_index = True)
     column_code = models.CharField(max_length=25, null=True, verbose_name=u'关联源页切列图CODE') # auto_trigger
+    column_set = JSONField(default=list, verbose_name=u'切字块所在切列JSON数据集')
     char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
     line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 对应图片的一列
 
@@ -521,7 +563,7 @@ class Patch(models.Model):
 
 class Schedule(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    reels = models.ManyToManyField(Reel, limit_choices_to={'cut_ready': False} ) # FXIME: 为了测试方便，先放宽切分数据准备状态
+    reels = models.ManyToManyField(Reel, limit_choices_to={'ready': True} )
     schedule_no = models.CharField(max_length=64, verbose_name=u'切分计划批次', default='', help_text=u'PN日期序列')
     cc_threshold = models.FloatField("切分置信度阈值", default=0.65)
     name = models.CharField(verbose_name='计划名称', max_length=64, blank=True)

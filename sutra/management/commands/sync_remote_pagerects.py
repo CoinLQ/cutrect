@@ -63,9 +63,35 @@ class Command(BaseCommand):
         print("pages CUT_PIC_NOTFOUND count: {0}".format(Page.objects.filter(status=PageStatus.CUT_PIC_NOTFOUND).count()))
 
     def expand_pagecols(self, check_pic = True):
-        opener = urllib.request.build_opener()
         for page in Page.objects.filter(status=PageStatus.COL_PIC_NOTFOUND):
-            pass
+            page.down_col_pos()
+        print('done')
+
+    def insert_col2rect(self):
+        for page in Page.objects.filter(status=PageStatus.RECT_COL_NOTREADY):
+            if(PageRect.reformat_rects(page.pid)):
+                page.status = PageStatus.READY
+                page.save()
+            else:
+                print(page.pid + ": RECT_COL not found!")
+                page.status = PageStatus.RECT_COL_NOTFOUND
+                page.save()
+        print('done')
+
+    def mark_ready_reel(self):
+        reel_ids = Page.objects.filter(status=PageStatus.READY).values_list('reel_id', flat=True).distinct()
+        for reel_id in reel_ids:
+            reel = Reel.objects.get(pk=reel_id)
+            stats = reel.pages.values_list('status', flat=True).distinct()
+            if len(stats) == 1:
+                reel.ready = True
+                reel.save()
+                reel.pages.update(status=PageStatus.MARKED)
+            else:
+                output = reel.rid + ": Page Statuses have "
+                for stat in stats:
+                   output +=  PageStatus.CHOICES[stat][1] + " "
+                print(output)
 
     def handle(self, *args, **options):
         which = options['action']
@@ -76,3 +102,9 @@ class Command(BaseCommand):
             self.dump_failure_json()
         elif(which == 'expand_rects'):
             self.expand_pagerects()
+        elif(which == 'expand_cols'):
+            self.expand_pagecols()
+        elif(which == 'insert_col2rect'):
+            self.insert_col2rect()
+        elif(which == 'mark_ready_reel'):
+            self.mark_ready_reel()
