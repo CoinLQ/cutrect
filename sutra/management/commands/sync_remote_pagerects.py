@@ -62,9 +62,15 @@ class Command(BaseCommand):
             page.save()
         print("pages CUT_PIC_NOTFOUND count: {0}".format(Page.objects.filter(status=PageStatus.CUT_PIC_NOTFOUND).count()))
 
+    def expand_pagecols(self, check_pic = True):
+        opener = urllib.request.build_opener()
+        for page in Page.objects.filter(status=PageStatus.COL_PIC_NOTFOUND):
+            pass
+
     def handle(self, *args, **options):
         which = options['action']
         if (which == 'pagerect'):
+            self.try_down_and_create_pagerects()
             print('ok')
         elif(which == 'dump_json'):
             self.dump_failure_json()
