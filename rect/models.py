@@ -464,6 +464,10 @@ class Rect(models.Model):
         return self.ch
 
     @property
+    def serialize_set(self):
+        return dict((k, v) for k, v in self.__dict__.items() if not k.startswith("_"))
+
+    @property
     def cncode(self):
         return "%s%02d" % (self.page_code, self.line_no)
 
@@ -563,10 +567,11 @@ class Patch(models.Model):
 
 class Schedule(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    reels = models.ManyToManyField(Reel, limit_choices_to={'ready': True} )
-    schedule_no = models.CharField(max_length=64, verbose_name=u'切分计划批次', default='', help_text=u'PN日期序列')
-    cc_threshold = models.FloatField("切分置信度阈值", default=0.65)
-    name = models.CharField(verbose_name='计划名称', max_length=64, blank=True)
+    reels = models.ManyToManyField(Reel, limit_choices_to={'ready': True}, blank=True )
+    name = models.CharField(verbose_name='计划名称', max_length=64)
+
+    cc_threshold = models.FloatField("切分置信度阈值", default=0.65, blank=True)
+
     # todo 设置总任务的优先级时, 子任务包的优先级凡是小于总任务优先级的都提升优先级, 高于或等于的不处理. 保持原优先级.
     priority = models.PositiveSmallIntegerField(
         choices=PriorityLevel.CHOICES,
@@ -578,12 +583,13 @@ class Schedule(models.Model):
         null=True,
         blank=True,
         choices=ScheduleStatus.CHOICES,
-        default=ScheduleStatus.ACTIVE,
+        default=ScheduleStatus.NOT_ACTIVE,
         verbose_name=u'计划状态',
     )
     due_at = models.DateField(null=True, blank=True, verbose_name=u'截止日期')
     created_at = models.DateTimeField(null=True, blank=True, verbose_name=u'创建日期', auto_now_add=True)
     remark = models.TextField(max_length=256, null=True, blank=True, verbose_name=u'备注')
+    schedule_no = models.CharField(max_length=64, verbose_name=u'切分计划批次', default='', help_text=u'自动生成', blank=True)
 
     def __str__(self):
         return self.name

@@ -9,12 +9,6 @@ import os
 from django.dispatch import receiver
 from django.db import models
 
-# @receiver(models.signals.post_save, sender=Batch)
-# def after_create_batch(sender, instance, created, **kwargs):
-#     if created:
-#         parseBatchToPageRect(batchId=instance.id)
-
-
 
 # @shared_task
 # def parseBatchToPageRect(batchId=''):

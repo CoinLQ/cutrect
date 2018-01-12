@@ -22,7 +22,7 @@ class MainDashboard(object):
         ],
         [
             {"type": "list", "model": "rect.Schedule", "params": {"o": "-created_at"}},
-            {"type": "addform", "model": Schedule}
+            # {"type": "addform", "model": Schedule}
         ]
     ]
 
@@ -49,17 +49,6 @@ class GlobalSetting(object):
 '''
 基础配置
 '''
-
-@xadmin.sites.register(PageRect)
-class PageRectAdmin(object):
-    list_display = ("id", "page", "line_count", "column_count", "rect_set", "created_at")
-    list_display_links = ("id",)
-    list_filter = ("page", 'created_at')
-    search_fields = ["id" ]
-    date_hierarchy = 'created_at'  # 详细时间分层筛选
-    relfield_style = "fk-select"
-    reversion_enable = True
-
 
 @xadmin.sites.register(Schedule)
 class ScheduleAdmin(object):
@@ -134,6 +123,17 @@ class Reel_Task_StatisticalAdmin(object):
     list_filter = ('completed_cctasks',)
 
 
+@xadmin.sites.register(CCTask)
+class CCTaskAdmin(object):
+    list_display = ("number", "schedule", "ttype", "status", "update_date", "rect_set", "owner")
+    list_display_links = ("number",)
+    list_filter = ("number", 'update_date')
+    search_fields = ["owner", "status" ]
+    list_editable = ('owner', "status")
+    date_hierarchy = 'update_date'  # 详细时间分层筛选
+    relfield_style = "fk-select"
+
+
 # @xadmin.sites.register(Task)
 # class TaskAdmin(object):
 #     list_display = ("number", "schedule", "ttype", "status", "date", "rect_set", "data")
@@ -187,3 +187,14 @@ class Reel_Task_StatisticalAdmin(object):
 #
 #     def _chart_month(self, obj):
 #         return obj.date.strftime("%B")
+
+
+@xadmin.sites.register(PageRect)
+class PageRectAdmin(object):
+    list_display = ("id", "page", "line_count", "column_count", "rect_set", "created_at")
+    list_display_links = ("id",)
+    list_filter = ("page", 'created_at')
+    search_fields = ["id" ]
+    date_hierarchy = 'created_at'  # 详细时间分层筛选
+    relfield_style = "fk-select"
+    reversion_enable = True
