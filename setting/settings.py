@@ -148,12 +148,11 @@ DATABASES = {
         'PORT': '5432',
 
     },
-    # 'test': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    # }
+    'sutra_db': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'sutra.sqlite3'),
+    }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
@@ -344,3 +343,6 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379'
 #http://liyangliang.me/posts/2015/06/using-supervisor/
 #Celery Tasks 参数介绍.
 #http://www.jianshu.com/p/d8cbd4c72758
+
+
+DATABASE_ROUTERS = ['setting.db_router.DBRouter']
