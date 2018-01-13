@@ -183,7 +183,6 @@ REST_FRAMEWORK = {
 }
 
 JWT_AUTH = {
-    "JWT_AUTH_COOKIE": True,
     'JWT_RESPONSE_PAYLOAD_HANDLER':
         'jwt_auth.serializers.jwt_response_payload_handler',
     'JWT_PAYLOAD_HANDLER': 'jwt_auth.serializers.jwt_payload_handler',

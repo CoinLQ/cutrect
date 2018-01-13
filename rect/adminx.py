@@ -101,6 +101,15 @@ class SutraAdmin(object):
     list_editable = ('total_reels',)
     list_filter = ('name', 'code')
 
+
+@xadmin.sites.register(Reel)
+class ReelAdmin(object):
+    list_display = ('rid', 'sutra', 'reel_no', 'ready', 'image_ready', 'image_upload', 'cut_ready', 'column_ready')
+    list_display_links = ('rid',)
+
+    search_fields = ('rid', 'ready')
+    list_filter = ('rid', 'ready')
+
 @xadmin.sites.register(Schedule_Task_Statistical)
 class Schedule_Task_StatisticalAdmin(object):
     list_display = ('schedule', 'amount_of_cctasks', 'completed_cctasks', 'amount_of_classifytasks',

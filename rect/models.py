@@ -13,7 +13,7 @@ from functools import wraps
 import json
 import urllib.request
 from jsonfield import JSONField
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import Sum, Case, When, Value, Count, Avg
 from django_bulk_update.manager import BulkUpdateManager
 from .lib.arrange_rect import ArrangeRect
@@ -208,6 +208,8 @@ class Sutra(models.Model, TripiMixin):
     def sutra_sn(self):
         return "%s%s%s" % (self.tripitaka_id, self.code.zfill(5), self.variant_code)
 
+    def __str__(self):
+        return self.name
 
 class Reel(models.Model):
     rid = models.CharField(verbose_name='实体藏经卷级总编码', max_length=14, blank=False, primary_key=True)
@@ -336,6 +338,19 @@ class PageRect(models.Model):
         verbose_name_plural = u"源页切分集管理"
         ordering = ('id',)
 
+    # @property
+    # def rect_set(self):
+    #     try:
+    #         ret = json.loads(self._rect_set)
+    #     except ValueError:
+    #         return {}
+    #     return ret
+
+
+    # @rect_set.setter
+    # def rect_set(self, val):
+    #     self._rect_set = json.dumps(val)
+
     @property
     def s3_uri(self):
         return self.page.s3_inset.name
@@ -361,6 +376,7 @@ class PageRect(models.Model):
         self.save()
 
     @classmethod
+    @transaction.atomic
     def reformat_rects(cls, page_id):
         ret = True
         rects = Rect.objects.filter(page_code=page_id).all()
@@ -374,15 +390,17 @@ class PageRect(models.Model):
                 _rect['line_no'] = lin_n
                 _rect['char_no'] = col_n
                 rect = Rect.generate(_rect)
+                rect.id = _rect['id'] or rect.id
                 rect.reel_id = page.reel_id
                 rect.page_code = page_id
                 try :
-                    rect.column_set = next((item for item in page.json if item["col_id"] == rect.cncode))
+                    column_dict = (item for item in page.json if item["col_id"] == rect.cncode).__next__()
+                    rect.column_set = column_dict
                 except:
                     ret = False
                     print(rect.cncode + ': col_pos doesn\'t exist!')
                 rect_list.append(rect)
-        Rect.objects.bulk_update(rect_list)
+        [rect.save() for rect in rect_list]
         pagerect = PageRect.objects.filter(page_id=page_id).first()
         pagerect.line_count = max(map(lambda Y: Y.line_no, rect_list))
         pagerect.column_count = max(map(lambda Y: Y.char_no, rect_list))
@@ -437,6 +455,7 @@ class Rect(models.Model):
     def generate(dict={}):
         getVal = lambda key, default=None: dict[key] if key in dict and dict[key] else default
         rect = Rect()
+        rect.x = getVal('id')
         rect.x = getVal('x')
         rect.y = getVal('y')
         rect.w = getVal('w')
@@ -445,7 +464,8 @@ class Rect(models.Model):
         rect.line_no = getVal('line_no')
         rect.cc = getVal('cc')
         rect.wcc = getVal('wcc')
-        rect.ch = getVal('char')
+        rect.ch = getVal('char') or getVal('ch')
+        rect.updated_at = getVal('updated_at')
         rect = Rect.normalize(rect)
         return rect
 

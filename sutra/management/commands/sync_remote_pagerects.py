@@ -43,7 +43,7 @@ class Command(BaseCommand):
                 page.down_pagerect()
                 print("RECTSET EMPTY! PID:" + page.pid)
 
-    def expand_pagerects(self, check_pic = True):
+    def expand_pagerects(self, check_pic = False):
         opener = urllib.request.build_opener()
         for page in Page.objects.filter(status=PageStatus.RECT_NOTREADY).prefetch_related('pagerects'):
             page_rect = page.pagerects.first()
