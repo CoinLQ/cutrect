@@ -86,19 +86,6 @@ CREATE TRIGGER fn_gen_pid
             EXECUTE PROCEDURE fn_gen_pid();
 
 
-CREATE or REPLACE FUNCTION fn_gen_lid() RETURNS trigger AS $fn_gen_lid$
-BEGIN
-NEW.oclid := NEW.page_id|| to_char(NEW.line_no, 'FM00');
-RETURN NEW;
-END;
-$fn_gen_lid$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS fn_gen_lid ON rect_ocolumn;
-CREATE TRIGGER fn_gen_lid
-    BEFORE INSERT OR UPDATE ON rect_ocolumn
-            FOR EACH ROW
-            EXECUTE PROCEDURE fn_gen_lid();
-
 CREATE or REPLACE FUNCTION fn_gen_cid() RETURNS trigger AS $fn_gen_cid$
 BEGIN
 NEW.cid := NEW.page_code|| to_char(NEW.line_no, 'FM00')|| 'n' || to_char(NEW.char_no, 'FM00');

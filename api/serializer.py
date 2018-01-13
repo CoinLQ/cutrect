@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from rect.models import Rect, OColumn, PageRect
+from rect.models import Rect, PageRect
 
 
 class RectSerializer(serializers.ModelSerializer):
@@ -7,12 +7,6 @@ class RectSerializer(serializers.ModelSerializer):
         model = Rect
         fields = ('cncode', 'w', 'line_no', 'ch', 'wcc', 'op', 'cc',
                   'x', 'id', 'ts', 'char_no', 'h', 'y')
-
-
-class OColumnSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OColumn
-        fields = ('s3_uri', 'code', 'x', 'y')
 
 
 class PageRectSerializer(serializers.ModelSerializer):

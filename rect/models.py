@@ -316,44 +316,6 @@ class Page(models.Model):
         verbose_name = '实体藏经页'
         verbose_name_plural = '实体藏经页管理'
 
-class OColumn(models.Model):
-
-    oclid = models.CharField(max_length=25, primary_key=True, verbose_name=u'页的切列编码')
-    page = models.ForeignKey(Page, blank=True, null=True, related_name='ocolumns', on_delete=models.CASCADE,
-                             verbose_name=u'原始页')
-    line_no = models.PositiveSmallIntegerField(blank=False, verbose_name=u'行号', default=1)  # 对应图片的一列
-    x = models.PositiveSmallIntegerField(verbose_name=u'坐标x', default=0)
-    y = models.PositiveSmallIntegerField(verbose_name=u'坐标y', default=0)
-    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
-                                storage='storages.backends.s3boto.S3BotoStorage')
-
-    @property
-    def ocolumn_sn(self):
-        return "%s%02d" % (self.page_id, self.line_no)
-
-    class Meta:
-        verbose_name = u"原始页"
-        verbose_name_plural = u"原始页管理"
-        ordering = ('oclid', )
-
-    @property
-    def s3_uri(self):
-        return self.s3_inset.name
-
-    @property
-    def x(self):
-        n = self.location.strip().split(',')[0] or 0
-        return n
-
-    @property
-    def y(self):
-        try:
-            n = self.location.strip().split(',')[1]
-        except:
-            n = 0
-        return n
-
-
 class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     page = models.ForeignKey(Page, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,

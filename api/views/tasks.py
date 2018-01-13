@@ -1,8 +1,8 @@
 from rest_framework import mixins, viewsets
 from rect.serializers import CCTaskSerializer, ClassifyTaskSerializer, \
                 PageTaskSerializer
-from api.serializer import RectSerializer, OColumnSerializer, PageRectSerializer
-from rect.models import CCTask, ClassifyTask, PageTask, Rect, OColumn, PageRect, OpStatus
+from api.serializer import RectSerializer, PageRectSerializer
+from rect.models import CCTask, ClassifyTask, PageTask, Rect, PageRect, OpStatus
 from rest_framework.response import Response
 from rest_framework.decorators import detail_route, list_route
 from api.utils.task import retrieve_cctask, retrieve_classifytask, \
@@ -58,11 +58,8 @@ class CCTaskViewSet(mixins.RetrieveModelMixin,
             return Response({"status": -1,
                              "msg": "All tasks has been done!"})
         rects = Rect.objects.filter(id__in=task.rects)
-        columns = list(map(lambda x: OColumn.objects.get(code=x.cncode),
-                           rects))
         return Response({
                         "rects": RectSerializer(rects, many=True).data,
-                        "ocolumns": OColumnSerializer(columns, many=True).data,
                         "task_id": task.id})
 
 
@@ -113,11 +110,8 @@ class ClassifyTaskViewSet(mixins.RetrieveModelMixin,
             return Response({"status": -1,
                              "msg": "All tasks has been done!"})
         rects = Rect.objects.filter(id__in=task.rects)
-        columns = list(map(lambda x: OColumn.objects.get(code=x.cncode),
-                           rects))
         return Response({
                         "rects": RectSerializer(rects, many=True).data,
-                        "ocolumns": OColumnSerializer(columns, many=True).data,
                         "task_id": task.id})
 
 
