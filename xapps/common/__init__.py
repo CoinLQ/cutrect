@@ -1,1 +1,1 @@
-from xapps.common.plugins import tree, wysi
+from xapps.common.plugins import tree, wysi, list_browser

@@ -589,12 +589,6 @@ class Schedule(models.Model):
         verbose_name_plural = u"切分计划管理"
         ordering = ('due_at', "status")
 
-@receiver(post_save, sender=Schedule)
-def post_schedule_create_pretables(sender, instance, created, **kwargs):
-    if created:
-        Schedule_Task_Statistical(schedule=instance).save()
-        instance.create_reels_task()
-
 
 def activity_log(func):
     @wraps(func)
@@ -830,41 +824,54 @@ class CharClassifyPlan(models.Model):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='char_clsfy_plan',
                                  on_delete=models.SET_NULL, verbose_name=u'切分计划')
     ch = models.CharField(null=True, blank=True, verbose_name=u'文字', max_length=2, default='', db_index=True)
-    total_cnt = models.IntegerField(verbose_name=u'总数', default=0)
+    total_cnt = models.IntegerField(verbose_name=u'总数', default=0, db_index=True)
     needcheck_cnt = models.IntegerField(verbose_name=u'待检查数', default=0)
     done_cnt = models.IntegerField(verbose_name=u'已完成数', default=0)
-    wcc_threshold = models.DecimalField(verbose_name=u'识别置信阈值',max_digits=4, decimal_places=3, default=0, db_index=True)
+    wcc_threshold = models.DecimalField(verbose_name=u'识别置信阈值',max_digits=4, decimal_places=3, default=0)
 
 
-    def create_charplan(self, schedule):
+    class Meta:
+        verbose_name = u"聚类准备表"
+        verbose_name_plural = u"聚类准备表管理"
+
+    @classmethod
+    def create_charplan(cls, schedule):
+        cls.objects.filter(schedule=schedule).all().delete()
         cursor = connection.cursor()
         raw_sql = '''
         SET SEARCH_PATH TO public;
-        INSERT INTO public.rect_charclassifyplan (ch, total_cnt)
+        INSERT INTO public.rect_charclassifyplan (ch, total_cnt, needcheck_cnt, done_cnt, wcc_threshold, schedule_id)
         SELECT
         ch,
         count(rect_rect."ch") as total_cnt,
-        FROM
-        public.rect_rect
+        0,0,0,
+        '%s'
+        FROM public.rect_rect
         where reel_id IN ('%s')
         group by ch
-        ON CONFLICT (ch)
-        DO UPDATE SET
-        total_cnt=EXCLUDED.total_cnt,
-        schedule_id='%s'
-        ''' % (','.join(schedule.reels.values_list('id', flat=True)), schedule.id)
+        ''' % (schedule.id, '\',\''.join(schedule.reels.values_list('rid', flat=True)))
         cursor.execute(raw_sql)
+        cls.objects.filter(schedule=schedule, total_cnt__lt=10).all().delete()
 
 
     def measure_charplan(self, wcc_threshold):
-        result = Rect.objects.filter(ch=self.ch, reel__in=self.schedule.reels).aggregate(
+        result = Rect.objects.filter(ch=self.ch, reel_id__in=self.schedule.reels.values_list('rid', flat=True)).aggregate(
             needcheck_cnt=Sum(Case(When(wcc__lte=wcc_threshold, then=Value(1)),
             default=Value(0),
-            output_field=IntegerField())),
+            output_field=models.    IntegerField())),
             total_cnt=Count('id'))
-        CharClassifyPlan.objects.get_or_create(schedule=self.schedule,ch=self.ch)
-        CharClassifyPlan.objects.filter(schedule=self.schedule,ch=self.ch).update(needcheck_cnt=result['needcheck_cnt'],
-                        total_cnt=result['total_cnt'])
+        self.total_cnt=result['total_cnt']
+        self.needcheck_cnt=result['needcheck_cnt']
+        self.wcc_threshold=wcc_threshold
+        self.save()
+
+
+@receiver(post_save, sender=Schedule)
+def post_schedule_create_pretables(sender, instance, created, **kwargs):
+    if created:
+        Schedule_Task_Statistical(schedule=instance).save()
+        instance.create_reels_task()
+        CharClassifyPlan.create_charplan(instance)
 
 # class AccessRecord(models.Model):
 #     date = models.DateField()

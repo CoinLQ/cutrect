@@ -103,7 +103,7 @@ celerybeat.pid
 setting/settings_local.py
 
 test/
-static/
+xapps/common/static/common
 *.sqlite
 data/
 xapps/common/views/upload_view_bak.py

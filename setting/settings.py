@@ -113,7 +113,7 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             os.path.join(PROJECT_ROOT, "templates"),
-            os.path.join(PROJECT_ROOT, "frontend/build"),
+            os.path.join(PROJECT_ROOT, "xapps/common/templates"),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -302,7 +302,7 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 # Add for vuejs
 
 STATICFILES_DIRS = [
-    os.path.join(PROJECT_ROOT, 'frontend/build'),
+    os.path.join(PROJECT_ROOT, 'xapps/common/static'),
     os.path.join(PROJECT_ROOT, 'xcms/static/xcms'),
 ]
 

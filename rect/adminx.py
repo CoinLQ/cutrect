@@ -52,21 +52,22 @@ class GlobalSetting(object):
 
 @xadmin.sites.register(Schedule)
 class ScheduleAdmin(object):
-    #form = ScheduleModelForm
+    browser_details = {'name': {'title':u'置信字块详情页', 'load_url':'detail2'}}
 
     def remain_task_count(self, instance):
         count = CCTask.objects.filter(schedule=instance.id, status__in=TaskStatus.remain_status).count()
         if count > 0:
-            return """<a href='/xadmin/rect/cctask/?_p_roll__id__exact=%s'>%s</a>""" % (instance.id, count)
+            return """<a href='/xadmin/rect/cctask/?schedule_id__exact=%s'>%s</a>""" % (instance.id, count)
         return count
-    remain_task_count.short_description = "未完成任务"
+    remain_task_count.short_description = "未完置信任务数"
     remain_task_count.allow_tags = True
     remain_task_count.is_column = True
 
-    list_display = ("name",  "status", "due_at", 'created_at')
-    list_display_links = ("name", "status")
+    list_display = ("name", "cc_threshold", "status", "due_at", 'created_at', 'remain_task_count')
+    list_display_links = ("name", )
     list_filter = ('status', 'due_at', 'created_at')
     search_fields = ["name" ]
+    list_editable = ("cc_threshold" ,)
     date_hierarchy = 'due_at'
     relfield_style = "fk-select"
     reversion_enable = True
@@ -142,6 +143,18 @@ class CCTaskAdmin(object):
     date_hierarchy = 'update_date'  # 详细时间分层筛选
     relfield_style = "fk-select"
 
+@xadmin.sites.register(CharClassifyPlan)
+class CharClassifyPlanAdmin(object):
+
+    browser_details = {'ch': {'title':u'聚类字块详情页', 'load_url':'detail2'}}
+
+    list_display = ("schedule", "ch", "total_cnt", "needcheck_cnt", "wcc_threshold", )
+    list_display_links = ("total_cnt",)
+    list_filter = ("ch", 'total_cnt')
+    search_fields = ["ch", "total_cnt" ]
+    list_editable = ('wcc_threshold',)
+    date_hierarchy = 'wcc_threshold'  # 详细时间分层筛选
+    relfield_style = "fk-select"
 
 # @xadmin.sites.register(Task)
 # class TaskAdmin(object):
