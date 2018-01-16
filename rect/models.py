@@ -5,19 +5,33 @@ from django.db import models
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 import uuid
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from db_file_storage.storage import DatabaseFileStorage
 from jwt_auth.models import Staff
 from django.utils.timezone import localtime, now
 from functools import wraps
 import json
+import urllib.request
 from jsonfield import JSONField
-from django.db import connection
-from django.db.models import Sum, Case, When, Value, Count, Avg
+from django.db import connection, transaction
+from django.db.models import Sum, Case, When, Value, Count, Avg, F
 from django_bulk_update.manager import BulkUpdateManager
+from .lib.arrange_rect import ArrangeRect
+from dotmap import DotMap
 
-db_storage = DatabaseFileStorage()
+def iterable(cls):
+    """
+    model的迭代器并输出dict，且不包含内部__,_开头的key
+    """
+    @wraps(cls)
+    def iterfn(self):
+        iters = dict((k, v) for k, v in self.__dict__.items() if not k.startswith("_"))
+
+        for k, v in iters.items():
+            yield k, v
+
+    cls.__iter__ = iterfn
+    return cls
 
 class ORGGroup(object):
     ALI = 0
@@ -35,11 +49,15 @@ class SliceType(object):
     CC = 2
     CLASSIFY = 3
     CHECK = 4
+    VDEL = 5
+    REVIEW = 6
     CHOICES = (
         (CC, u'置信度'),
         (PPAGE, u'顺序校对'),
         (CLASSIFY, u'聚类'),
         (CHECK, u'差缺补漏'),
+        (VDEL, u'删框'),
+        (REVIEW, u'反馈审查'),
     )
 
 
@@ -57,7 +75,32 @@ class ScheduleStatus:
         (COMPLETED, u'已完成'),
     )
 
+class PageStatus:
+    INITIAL = 0
+    RECT_NOTFOUND = 1
+    PARSE_FAILED = 2
+    RECT_NOTREADY = 3
+    CUT_PIC_NOTFOUND = 4
+    COL_PIC_NOTFOUND = 5
+    COL_POS_NOTFOUND = 6
+    RECT_COL_NOTREADY = 7
+    RECT_COL_NOTFOUND = 8
+    READY = 9
+    MARKED = 10
 
+    CHOICES = (
+        (INITIAL, u'初始化'),
+        (RECT_NOTFOUND, u'切分数据未上传'),
+        (PARSE_FAILED, u'数据解析失败'),
+        (RECT_NOTREADY, u'字块数据未展开'),
+        (CUT_PIC_NOTFOUND, u'图片不存在'),
+        (COL_PIC_NOTFOUND, u'列图不存在'),
+        (COL_POS_NOTFOUND, u'列图坐标不存在'),
+        (RECT_COL_NOTREADY, u'字块对应列图未准备'),
+        (RECT_COL_NOTFOUND, u'字块对应列图不存在'),
+        (READY, u'已准备好'),
+        (MARKED, u'已入卷标记'),
+    )
 class TaskStatus:
     NOT_GOT = 0
     EXPIRED = 1
@@ -121,6 +164,17 @@ class TripiMixin(object):
     def __str__(self):
         return self.name
 
+class Node(models.Model):
+    name = models.CharField(u"名称", max_length=64)
+    code = models.CharField(u"节点代码", max_length=27, primary_key=True)
+    parent = models.ForeignKey('self', verbose_name=u'父节点', related_name='children', null=True, blank=True)
+
+    class Meta:
+        verbose_name=u'节点'
+        verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return self.name +":" +self.code
 
 class LQSutra(models.Model, TripiMixin):
     code = models.CharField(verbose_name='龙泉经目编码', max_length=8, primary_key=True) #（为"LQ"+ 经序号 + 别本号）
@@ -158,12 +212,14 @@ class Sutra(models.Model, TripiMixin):
     def sutra_sn(self):
         return "%s%s%s" % (self.tripitaka_id, self.code.zfill(5), self.variant_code)
 
+    def __str__(self):
+        return self.name
 
 class Reel(models.Model):
     rid = models.CharField(verbose_name='实体藏经卷级总编码', max_length=14, blank=False, primary_key=True)
     sutra = models.ForeignKey(Sutra, related_name='reels')
     reel_no = models.CharField(verbose_name='经卷序号编码', max_length=3, blank=False)
-    ready = models.BooleanField(verbose_name='已准备好', default=False)
+    ready = models.BooleanField(verbose_name='已准备好', db_index=True, default=False)
     image_ready = models.BooleanField(verbose_name='图源状态', default=False)
     image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
     txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
@@ -178,6 +234,13 @@ class Reel(models.Model):
     def reel_sn(self):
         return "%sr%s" % (self.sutra_id, self.reel_no.zfill(3))
 
+    @property
+    def name(self):
+        return u"第%s卷" %(self.reel_no,)
+
+    def __str__(self):
+        return self.sutra.name + self.rid
+
 class Page(models.Model):
     pid = models.CharField(verbose_name='实体藏经页级总编码', max_length=21, blank=False, primary_key=True)
     reel = models.ForeignKey(Reel, related_name='pages')
@@ -185,18 +248,71 @@ class Page(models.Model):
     vol_no = models.CharField(verbose_name='册序号编码', max_length=3, blank=False)
     page_no = models.IntegerField(verbose_name='册级页序号', default=1, blank=False)
     img_path = models.CharField(verbose_name='图片路径', max_length=128, blank=False)
-    ready = models.BooleanField(verbose_name='已准备好', default=False)
-    image_ready = models.BooleanField(verbose_name='图源状态', default=False)
-    image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
-    txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
-    cut_ready = models.BooleanField(verbose_name='切分数据状态', default=False)
-    column_ready = models.BooleanField(verbose_name='切列图状态', default=False)
+    status = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型',
+                                              choices=PageStatus.CHOICES, default=PageStatus.INITIAL)
     json = JSONField(default=dict)
+    updated_at = models.DateTimeField(verbose_name='更新时间', auto_now=True)
     # s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u'S3图片路径地址', upload_to='lqcharacters-images',
     #                             storage='storages.backends.s3boto.S3BotoStorage')
 
     def get_real_path(self):
+        # FIXME: 暂时这么写可以，写死了，GEO CDN就失效了。
         return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/" + self.img_path
+
+    def down_col_pos(self):
+        cut_file = self.get_real_path()[0:-3] + "col"
+        opener = urllib.request.build_opener()
+        try:
+            response = opener.open(cut_file)
+        except urllib.error.HTTPError as e:
+            # 下载失败
+            print(self.pid + ": col download failed")
+            return
+        try:
+            body = response.read().decode('utf8')
+            json_data = json.loads(body)
+            if json_data['page_code'] == self.pid and json_data['reel_no'] == self.reel_id \
+                and type(json_data['col_data'])==list :
+                self.status = PageStatus.RECT_COL_NOTREADY
+                self.json = json_data['col_data']
+                self.save()
+        except:
+            print(self.pid + ": col parse failed")
+            print("CONTENT:" + body)
+            self.json = {"content": body}
+            self.status = PageStatus.COL_POS_NOTFOUND
+            self.save(update_fields=['status', 'json'])
+            return
+
+    def down_pagerect(self):
+        cut_file = self.get_real_path()[0:-3] + "cut"
+        opener = urllib.request.build_opener()
+        try:
+            response = opener.open(cut_file)
+        except urllib.error.HTTPError as e:
+            # 下载失败
+            print(self.pid + ": rect download failed")
+            self.status = PageStatus.RECT_NOTFOUND
+            self.save(update_fields=['status'])
+            return
+        try:
+            body = response.read().decode('utf8')
+            json_data = json.loads(body)
+            if json_data['page_code'] == self.pid and json_data['reel_no'] == self.reel_id \
+                and type(json_data['char_data'])==list :
+                pass
+        except:
+            print(self.pid + ": rect parse failed")
+            print("CONTENT:" + body)
+            self.json = {"content": body}
+            self.status = PageStatus.PARSE_FAILED
+            self.save(update_fields=['status', 'json'])
+            return
+        self.pagerects.all().delete()
+        PageRect(page=self, reel=self.reel, line_count=0, column_count=0, rect_set=json_data['char_data']).save()
+        self.status = PageStatus.RECT_NOTREADY
+        self.save(update_fields=['status'])
+        print(self.pid + ": pagerect saved")
 
     @property
     def page_sn(self):
@@ -206,52 +322,14 @@ class Page(models.Model):
         verbose_name = '实体藏经页'
         verbose_name_plural = '实体藏经页管理'
 
-class OColumn(models.Model):
-
-    oclid = models.CharField(max_length=25, primary_key=True, verbose_name=u'页的切列编码')
-    page = models.ForeignKey(Page, blank=True, null=True, related_name='ocolumns', on_delete=models.CASCADE,
-                             verbose_name=u'原始页')
-    line_no = models.PositiveSmallIntegerField(blank=False, verbose_name=u'行号', default=1)  # 对应图片的一列
-    x = models.PositiveSmallIntegerField(verbose_name=u'坐标x', default=0)
-    y = models.PositiveSmallIntegerField(verbose_name=u'坐标y', default=0)
-    s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
-                                storage='storages.backends.s3boto.S3BotoStorage')
-
-    @property
-    def ocolumn_sn(self):
-        return "%s%02d" % (self.page_id, self.line_no)
-
-    class Meta:
-        verbose_name = u"原始页"
-        verbose_name_plural = u"原始页管理"
-        ordering = ('oclid', )
-
-    @property
-    def s3_uri(self):
-        return self.s3_inset.name
-
-    @property
-    def x(self):
-        n = self.location.strip().split(',')[0] or 0
-        return n
-
-    @property
-    def y(self):
-        try:
-            n = self.location.strip().split(',')[1]
-        except:
-            n = 0
-        return n
-
-
 class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     page = models.ForeignKey(Page, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
                              verbose_name=u'关联源页信息')
     reel = models.ForeignKey(Reel, null=True, blank=True, related_name='pagerects')
     op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
-    line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数')
-    column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数')
+    line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数') # 最大文本行号
+    column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数') # 最大文本长度
     rect_set = JSONField(default=list, verbose_name=u'切字块JSON切分数据集')
     created_at = models.DateTimeField(null=True, blank=True, verbose_name=u'创建时间', auto_now_add=True)
     primary = models.BooleanField(verbose_name="主切分方案", default=True)
@@ -264,20 +342,76 @@ class PageRect(models.Model):
         verbose_name_plural = u"源页切分集管理"
         ordering = ('id',)
 
+    # @property
+    # def rect_set(self):
+    #     try:
+    #         ret = json.loads(self._rect_set)
+    #     except ValueError:
+    #         return {}
+    #     return ret
+
+
+    # @rect_set.setter
+    # def rect_set(self, val):
+    #     self._rect_set = json.dumps(val)
+
     @property
     def s3_uri(self):
         return self.page.s3_inset.name
 
-    @property
-    def json_rects(self):
-        return json.loads(self.rect_set)
+    def rebuild_rect(self):
+        if len(self.rect_set) == 0:
+            return
+        cids = list(map(lambda X: X["char_id"], self.rect_set))
+        Rect.objects.filter(reel=self.reel, cid__in=cids).all().delete()
+        rect_list = list()
+        columns, column_len = ArrangeRect.resort_rects_from_list(self.rect_set)
+        for lin_n, line in columns.items():
+            for col_n, _rect in enumerate(line, start=1):
+                _rect['line_no'] = lin_n
+                _rect['char_no'] = col_n
+                rect = Rect.generate(_rect)
+                rect.reel = self.reel
+                rect.page_code = self.page_id
+                rect_list.append(rect)
+        Rect.objects.bulk_create(rect_list)
+        self.line_count = max(map(lambda Y: Y.line_no, rect_list))
+        self.column_count = max(map(lambda Y: Y.char_no, rect_list))
+        self.save()
 
-    @json_rects.setter
-    def json_rects(self, value):
-        self.rect_set = json.dumps(value, ensure_ascii=False)
+    @classmethod
+    @transaction.atomic
+    def reformat_rects(cls, page_id):
+        ret = True
+        rects = Rect.objects.filter(page_code=page_id).all()
+        page = Page.objects.get(pk=page_id)
+        if rects.count() == 0:
+            return ret
+        columns, column_len = ArrangeRect.resort_rects_from_qs(rects)
+        rect_list = list()
+        for lin_n, line in columns.items():
+            for col_n, _rect in enumerate(line, start=1):
+                _rect['line_no'] = lin_n
+                _rect['char_no'] = col_n
+                rect = Rect.generate(_rect)
+                rect.id = _rect['id'] or rect.id
+                rect.reel_id = page.reel_id
+                rect.page_code = page_id
+                try :
+                    column_dict = (item for item in page.json if item["col_id"] == rect.cncode).__next__()
+                    rect.column_set = column_dict
+                except:
+                    ret = False
+                    print(rect.cncode + ': col_pos doesn\'t exist!')
+                rect_list.append(rect)
+        [rect.save() for rect in rect_list]
+        pagerect = PageRect.objects.filter(page_id=page_id).first()
+        pagerect.line_count = max(map(lambda Y: Y.line_no, rect_list))
+        pagerect.column_count = max(map(lambda Y: Y.char_no, rect_list))
+        pagerect.save()
+        return ret
 
-
-
+@iterable
 class Rect(models.Model):
     # https://github.com/aykut/django-bulk-update
     objects = BulkUpdateManager()
@@ -285,9 +419,10 @@ class Rect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     cid = models.CharField(verbose_name=u'经字号', max_length=28, db_index=True)
-    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects') # auto_trigger
-    page_code = models.CharField(max_length=23, blank=False, verbose_name=u'关联源页CODE')
+    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects')
+    page_code = models.CharField(max_length=23, blank=False, verbose_name=u'关联源页CODE', db_index = True)
     column_code = models.CharField(max_length=25, null=True, verbose_name=u'关联源页切列图CODE') # auto_trigger
+    column_set = JSONField(default=list, verbose_name=u'切字块所在切列JSON数据集')
     char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
     line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 对应图片的一列
 
@@ -313,17 +448,18 @@ class Rect(models.Model):
         return self.ch
 
     @property
-    def cncode(self):
-        return "{0}_L{1:02}".format(self.pcode, self.line_no)
+    def serialize_set(self):
+        return dict((k, v) for k, v in self.__dict__.items() if not k.startswith("_"))
 
     @property
-    def rectcode(self):
-        return "{0}_Z{1:02}".format(self.cncode, self.char_no)
+    def cncode(self):
+        return "%s%02d" % (self.page_code, self.line_no)
 
     @staticmethod
     def generate(dict={}):
         getVal = lambda key, default=None: dict[key] if key in dict and dict[key] else default
         rect = Rect()
+        rect.x = getVal('id')
         rect.x = getVal('x')
         rect.y = getVal('y')
         rect.w = getVal('w')
@@ -332,8 +468,25 @@ class Rect(models.Model):
         rect.line_no = getVal('line_no')
         rect.cc = getVal('cc')
         rect.wcc = getVal('wcc')
-        rect.ch = getVal('ch')
+        rect.ch = getVal('char') or getVal('ch')
+        rect.updated_at = getVal('updated_at')
+        rect = Rect.normalize(rect)
         return rect
+
+    @staticmethod
+    def normalize(instance):
+        if (instance.w < 0):
+            instance.x = instance.x + instance.w
+            instance.w = abs(instance.w)
+        if (instance.h < 0):
+            instance.y = instance.y + instance.h
+            instance.h = abs(instance.h)
+
+        if (instance.w == 0):
+            instance.w = 1
+        if (instance.h == 0):
+            instance.h = 1
+        return instance
 
     class Meta:
         verbose_name = u"源-切字块"
@@ -343,17 +496,23 @@ class Rect(models.Model):
 
 @receiver(pre_save, sender=Rect)
 def positive_w_h_fields(sender, instance, **kwargs):
-    if (instance.w < 0):
-        instance.x = instance.x + instance.w
-        instance.w = abs(instance.w)
-    if (instance.h < 0):
-        instance.y = instance.y + instance.h
-        instance.h = abs(instance.h)
+    instance = Rect.normalize(instance)
 
-    if (instance.w == 0):
-        instance.w = 1
-    if (instance.h == 0):
-        instance.h = 1
+@receiver(post_save)
+def create_new_node(sender, instance, created, **kwargs):
+    if sender==LQSutra:
+        Node(code=instance.code, name=instance.name).save()
+
+    if sender==Sutra:
+        if created:
+            Node(code=instance.sutra_sn, name=instance.name, parent_id=instance.lqsutra_id).save()
+        else:
+            Node.objects.filter(pk=instance.sutra_sn).update(parent_id=instance.lqsutra_id)
+    if sender==Reel:
+        if created:
+            Node(code=instance.reel_sn, name=instance.name, parent_id=instance.sutra_id).save()
+        else:
+            Node.objects.filter(pk=instance.reel_sn).update(parent_id=instance.sutra_id)
 
 
 class Patch(models.Model):
@@ -394,9 +553,10 @@ class Patch(models.Model):
 
 class Schedule(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    reels = models.ManyToManyField(Reel)
-    schedule_no = models.CharField(max_length=64, verbose_name=u'切分计划批次', default='')
-    cc_threshold = models.FloatField("切分置信度阈值", default=0.65)
+    reels = models.ManyToManyField(Reel, limit_choices_to={'ready': True}, blank=True )
+    name = models.CharField(verbose_name='计划名称', max_length=64)
+
+    cc_threshold = models.FloatField("切分置信度阈值", default=0.65, blank=True)
 
     # todo 设置总任务的优先级时, 子任务包的优先级凡是小于总任务优先级的都提升优先级, 高于或等于的不处理. 保持原优先级.
     priority = models.PositiveSmallIntegerField(
@@ -409,15 +569,24 @@ class Schedule(models.Model):
         null=True,
         blank=True,
         choices=ScheduleStatus.CHOICES,
-        default=ScheduleStatus.ACTIVE,
+        default=ScheduleStatus.NOT_ACTIVE,
         verbose_name=u'计划状态',
     )
     due_at = models.DateField(null=True, blank=True, verbose_name=u'截止日期')
     created_at = models.DateTimeField(null=True, blank=True, verbose_name=u'创建日期', auto_now_add=True)
     remark = models.TextField(max_length=256, null=True, blank=True, verbose_name=u'备注')
+    schedule_no = models.CharField(max_length=64, verbose_name=u'切分计划批次', default='', help_text=u'自动生成', blank=True)
 
     def __str__(self):
         return self.name
+
+    def create_reels_task(self):
+        # NOTICE: 实际这里不工作，多重关联这时并未创建成功。
+        # 在数据库层用存储过程在关联表记录创建后，创建卷任务。
+        tasks = []
+        for reel in self.reels.all():
+            tasks.append(Reel_Task_Statistical(schedule=self, reel=reel))
+        Reel_Task_Statistical.objects.bulk_create(tasks)
 
     class Meta:
         verbose_name = u"切分计划"
@@ -455,6 +624,10 @@ class Schedule_Task_Statistical(models.Model):
     remark = models.TextField(max_length=256, null=True, blank=True, verbose_name=u'备注', default= '')
     updated_at = models.DateTimeField('更新时间', auto_now=True)
 
+    class Meta:
+        verbose_name = u"切分计划任务统计"
+        verbose_name_plural = u"切分计划任务统计管理"
+        ordering = ('schedule', )
 
 class Reel_Task_Statistical(models.Model):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='schedule_reel_task_statis',
@@ -468,6 +641,11 @@ class Reel_Task_Statistical(models.Model):
     completed_pptasks = models.IntegerField(verbose_name=u'逐字任务完成数', default=0)
 
     updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        verbose_name = u"实体卷任务统计"
+        verbose_name_plural = u"实体卷任务统计管理"
+        ordering = ('schedule', 'reel')
 
 
 class Task(models.Model):
@@ -504,9 +682,35 @@ class Task(models.Model):
     def serialize_set(cls, dataset):
         return ";".join(dataset)
 
+    # 六种不同任务有不同的统计模式
+    def tasks_increment(self):
+        stask = Schedule_Task_Statistical.objects.filter(schedule=self.schedule)
+        if self.ttype == SliceType.CC:
+            stask.update(completed_cctasks = F('completed_cctasks')+1)
+            reel_id = self.rect_set[0]['reel_id']
+            rtask = Reel_Task_Statistical.objects.filter(schedule=self.schedule, reel_id=reel_id)
+            rtask.update(completed_cctasks = F('completed_cctasks')+1)
+        elif self.ttype == SliceType.CLASSIFY:
+            stask.update(completed_classifytasks = F('completed_classifytasks')+1)
+        elif self.ttype == SliceType.PPAGE:
+            stask.update(completed_pptasks = F('completed_pptasks')+1)
+            reel_id = self.page_set[0]['reel_id']
+            rtask = Reel_Task_Statistical.objects.filter(schedule=self.schedule, reel_id=reel_id)
+            rtask.update(completed_cctasks = F('completed_pptasks')+1)
+        elif self.ttype == SliceType.CHECK:
+            stask.update(completed_absenttasks = F('completed_absenttasks')+1)
+            reel_id = self.page_set[0]['reel_id']
+            rtask = Reel_Task_Statistical.objects.filter(schedule=self.schedule, reel_id=reel_id)
+            rtask.update(completed_cctasks = F('completed_absenttasks')+1)
+        elif self.ttype == SliceType.VDEL:
+            stask.update(completed_absenttasks = F('completed_vdeltasks')+1)
+        elif self.ttype == SliceType.REVIEW:
+            stask.update(completed_absenttasks = F('completed_reviewtasks')+1)
+
     @activity_log
     def done(self):
         self.status = TaskStatus.COMPLETED
+        self.tasks_increment()
         return self.save(update_fields=["status"])
 
     @activity_log
@@ -652,41 +856,58 @@ class CharClassifyPlan(models.Model):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='char_clsfy_plan',
                                  on_delete=models.SET_NULL, verbose_name=u'切分计划')
     ch = models.CharField(null=True, blank=True, verbose_name=u'文字', max_length=2, default='', db_index=True)
-    total_cnt = models.IntegerField(verbose_name=u'总数', default=0)
+    total_cnt = models.IntegerField(verbose_name=u'总数', default=0, db_index=True)
     needcheck_cnt = models.IntegerField(verbose_name=u'待检查数', default=0)
     done_cnt = models.IntegerField(verbose_name=u'已完成数', default=0)
-    wcc_threshold = models.DecimalField(verbose_name=u'识别置信阈值',max_digits=4, decimal_places=3, default=0, db_index=True)
+    wcc_threshold = models.DecimalField(verbose_name=u'识别置信阈值',max_digits=4, decimal_places=3, default=0)
 
 
-    def create_charplan(self, schedule):
+    class Meta:
+        verbose_name = u"聚类准备表"
+        verbose_name_plural = u"聚类准备表管理"
+
+    @classmethod
+    def create_charplan(cls, schedule):
+        cls.objects.filter(schedule=schedule).all().delete()
         cursor = connection.cursor()
         raw_sql = '''
         SET SEARCH_PATH TO public;
-        INSERT INTO public.rect_charclassifyplan (ch, total_cnt)
+        INSERT INTO public.rect_charclassifyplan (ch, total_cnt, needcheck_cnt, done_cnt, wcc_threshold, schedule_id)
         SELECT
         ch,
         count(rect_rect."ch") as total_cnt,
-        FROM
-        public.rect_rect
+        0,0,0,
+        '%s'
+        FROM public.rect_rect
         where reel_id IN ('%s')
         group by ch
-        ON CONFLICT (ch)
-        DO UPDATE SET
-        total_cnt=EXCLUDED.total_cnt,
-        schedule_id='%s'
-        ''' % (','.join(schedule.reels.values_list('id', flat=True)), schedule.id)
+        ''' % (schedule.id, '\',\''.join(schedule.reels.values_list('rid', flat=True)))
         cursor.execute(raw_sql)
+        cls.objects.filter(schedule=schedule, total_cnt__lt=10).all().delete()
 
 
     def measure_charplan(self, wcc_threshold):
-        result = Rect.objects.filter(ch=self.ch, reel__in=self.schedule.reels).aggregate(
+        result = Rect.objects.filter(ch=self.ch, reel_id__in=self.schedule.reels.values_list('rid', flat=True)).aggregate(
             needcheck_cnt=Sum(Case(When(wcc__lte=wcc_threshold, then=Value(1)),
             default=Value(0),
-            output_field=IntegerField())),
+            output_field=models.    IntegerField())),
             total_cnt=Count('id'))
-        CharClassifyPlan.objects.get_or_create(schedule=self.schedule,ch=self.ch)
-        CharClassifyPlan.objects.filter(schedule=self.schedule,ch=self.ch).update(needcheck_cnt=result['needcheck_cnt'],
-                        total_cnt=result['total_cnt'])
+        self.total_cnt=result['total_cnt']
+        self.needcheck_cnt=result['needcheck_cnt']
+        self.wcc_threshold=wcc_threshold
+        self.save()
+
+    def gen_classify_task(self):
+        ClassifyTask.objects.filter(char_set=self.ch).all().delete()
+
+
+
+@receiver(post_save, sender=Schedule)
+def post_schedule_create_pretables(sender, instance, created, **kwargs):
+    if created:
+        Schedule_Task_Statistical(schedule=instance).save()
+        instance.create_reels_task()
+        CharClassifyPlan.create_charplan(instance)
 
 # class AccessRecord(models.Model):
 #     date = models.DateField()

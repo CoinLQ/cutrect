@@ -1,6 +1,6 @@
 from django.test import TestCase
 from rect.models import ORGGroup, Schedule, Rect, CCTask, SliceType
-from rect.models import Tripitaka, Sutra, Reel, Page, OColumn, Rect
+from rect.models import Tripitaka, Sutra, Reel, Page, Rect
 from setting.settings import MEDIA_ROOT
 
 from datetime import date
@@ -96,12 +96,7 @@ class BaseModelTest(TestCase):
             page = Page.objects.get(pk=p.page_sn)
             self.assertEquals(page.pid, 'YB000321v010p00100')
 
-            ocolumn = OColumn(page=page, line_no=1)
-            ocolumn.save()
-
-            ocolumn = OColumn.objects.get(pk=ocolumn.ocolumn_sn)
-            print(ocolumn.ocolumn_sn)
-            self.assertEquals(ocolumn.oclid, 'YB000321v010p0010001')
+            print('ocolumn_sn: YB000321v010p0010001' )
 
 
             rect = Rect(page_code=page.pid, reel=page.reel, char_no=5, line_no=10)

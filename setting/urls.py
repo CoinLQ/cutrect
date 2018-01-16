@@ -23,11 +23,13 @@ import xadmin
 xadmin.autodiscover()
 
 # version模块自动注册需要版本控制的 Model
-from xadmin.plugins import xversion
-xversion.register_models()
+# from xadmin.plugins import xversion
+# xversion.register_models()
+
+from django.views.generic import RedirectView
 
 urlpatterns = [
-    url(r'^$', TemplateView.as_view(template_name="index_prod.html")),
+    url(r'^$', RedirectView.as_view(url='/xadmin')),
     url(r'^admin/', admin.site.urls),
     url(r'^xadmin/', include(xadmin.site.urls)),
     url(r'^api/', include('api.urls')),

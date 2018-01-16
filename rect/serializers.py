@@ -79,11 +79,6 @@ class ScheduleSerializer(serializers.ModelSerializer):
         model = Schedule
         fields = '__all__'
 
-class OColumnSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OColumn
-        fields = '__all__'
-
 class PageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Page

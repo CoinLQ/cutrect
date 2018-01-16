@@ -1,15 +1,10 @@
 from rest_framework import mixins, viewsets
-from rect.serializers import OColumnSerializer, PageSerializer, \
+from rect.serializers import  PageSerializer, \
                 PageRectSerializer, RectSerializer, \
                 ScheduleSerializer, CCTaskSerializer, ClassifyTaskSerializer, \
                 PageTaskSerializer
-from rect.models import OColumn, Page, PageRect, Rect, \
+from rect.models import Page, PageRect, Rect, \
                         Schedule, CCTask, ClassifyTask, PageTask
-
-
-class OColumnViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = OColumn.objects.all()
-    serializer_class = OColumnSerializer
 
 
 class PageViewSet(viewsets.ReadOnlyModelViewSet):

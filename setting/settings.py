@@ -84,6 +84,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'rect',
     'storages',
+    'sutra',
+    'xapps',
+    #'xcms'
     # 'celery',
     #'kombu.transport.django', #http://blog.csdn.net/samed/article/details/50598371
 
@@ -110,7 +113,7 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             os.path.join(PROJECT_ROOT, "templates"),
-            os.path.join(PROJECT_ROOT, "frontend/build"),
+            os.path.join(PROJECT_ROOT, "xapps/common/templates"),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -145,12 +148,11 @@ DATABASES = {
         'PORT': '5432',
 
     },
-    # 'test': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    # }
+    'sutra_db': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'sutra.sqlite3'),
+    }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
@@ -181,7 +183,6 @@ REST_FRAMEWORK = {
 }
 
 JWT_AUTH = {
-    "JWT_AUTH_COOKIE": True,
     'JWT_RESPONSE_PAYLOAD_HANDLER':
         'jwt_auth.serializers.jwt_response_payload_handler',
     'JWT_PAYLOAD_HANDLER': 'jwt_auth.serializers.jwt_payload_handler',
@@ -240,6 +241,9 @@ LOGGING = {
 # In a Windows environment this must be set to your system time zone.
 TIME_ZONE = 'Asia/Shanghai'  # 'UTC'
 
+DATE_FORMAT = 'Y-m-d'
+DATETIME_FORMAT = 'Y-m-d H:i'
+TIME_FORMAT = 'H:i'
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGE_CODE = 'zh-Hans'  # 'en-us'
@@ -296,8 +300,10 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 #     # Don't forget to use absolute paths, not relative paths.
 # )
 # Add for vuejs
+
 STATICFILES_DIRS = [
-    os.path.join(PROJECT_ROOT, 'frontend/build'),
+    os.path.join(PROJECT_ROOT, 'xapps/common/static'),
+    os.path.join(PROJECT_ROOT, 'xcms/static/xcms'),
 ]
 
 # List of finder classes that know how to find static files in
@@ -336,3 +342,6 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379'
 #http://liyangliang.me/posts/2015/06/using-supervisor/
 #Celery Tasks 参数介绍.
 #http://www.jianshu.com/p/d8cbd4c72758
+
+
+DATABASE_ROUTERS = ['setting.db_router.DBRouter']
