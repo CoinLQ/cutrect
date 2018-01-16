@@ -14,7 +14,7 @@ import json
 import urllib.request
 from jsonfield import JSONField
 from django.db import connection, transaction
-from django.db.models import Sum, Case, When, Value, Count, Avg
+from django.db.models import Sum, Case, When, Value, Count, Avg, F
 from django_bulk_update.manager import BulkUpdateManager
 from .lib.arrange_rect import ArrangeRect
 from dotmap import DotMap
@@ -49,11 +49,15 @@ class SliceType(object):
     CC = 2
     CLASSIFY = 3
     CHECK = 4
+    VDEL = 5
+    REVIEW = 6
     CHOICES = (
         (CC, u'置信度'),
         (PPAGE, u'顺序校对'),
         (CLASSIFY, u'聚类'),
         (CHECK, u'差缺补漏'),
+        (VDEL, u'删框'),
+        (REVIEW, u'反馈审查'),
     )
 
 
@@ -642,6 +646,8 @@ class Reel_Task_Statistical(models.Model):
         verbose_name = u"实体卷任务统计"
         verbose_name_plural = u"实体卷任务统计管理"
         ordering = ('schedule', 'reel')
+
+
 class Task(models.Model):
     '''
     切分校对计划的任务实例
@@ -676,9 +682,35 @@ class Task(models.Model):
     def serialize_set(cls, dataset):
         return ";".join(dataset)
 
+    # 六种不同任务有不同的统计模式
+    def tasks_increment(self):
+        stask = Schedule_Task_Statistical.objects.filter(schedule=self.schedule)
+        if self.ttype == SliceType.CC:
+            stask.update(completed_cctasks = F('completed_cctasks')+1)
+            reel_id = self.rect_set[0]['reel_id']
+            rtask = Reel_Task_Statistical.objects.filter(schedule=self.schedule, reel_id=reel_id)
+            rtask.update(completed_cctasks = F('completed_cctasks')+1)
+        elif self.ttype == SliceType.CLASSIFY:
+            stask.update(completed_classifytasks = F('completed_classifytasks')+1)
+        elif self.ttype == SliceType.PPAGE:
+            stask.update(completed_pptasks = F('completed_pptasks')+1)
+            reel_id = self.page_set[0]['reel_id']
+            rtask = Reel_Task_Statistical.objects.filter(schedule=self.schedule, reel_id=reel_id)
+            rtask.update(completed_cctasks = F('completed_pptasks')+1)
+        elif self.ttype == SliceType.CHECK:
+            stask.update(completed_absenttasks = F('completed_absenttasks')+1)
+            reel_id = self.page_set[0]['reel_id']
+            rtask = Reel_Task_Statistical.objects.filter(schedule=self.schedule, reel_id=reel_id)
+            rtask.update(completed_cctasks = F('completed_absenttasks')+1)
+        elif self.ttype == SliceType.VDEL:
+            stask.update(completed_absenttasks = F('completed_vdeltasks')+1)
+        elif self.ttype == SliceType.REVIEW:
+            stask.update(completed_absenttasks = F('completed_reviewtasks')+1)
+
     @activity_log
     def done(self):
         self.status = TaskStatus.COMPLETED
+        self.tasks_increment()
         return self.save(update_fields=["status"])
 
     @activity_log
@@ -864,6 +896,10 @@ class CharClassifyPlan(models.Model):
         self.needcheck_cnt=result['needcheck_cnt']
         self.wcc_threshold=wcc_threshold
         self.save()
+
+    def gen_classify_task(self):
+        ClassifyTask.objects.filter(char_set=self.ch).all().delete()
+
 
 
 @receiver(post_save, sender=Schedule)

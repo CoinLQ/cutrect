@@ -156,6 +156,16 @@ class CharClassifyPlanAdmin(object):
     date_hierarchy = 'wcc_threshold'  # 详细时间分层筛选
     relfield_style = "fk-select"
 
+@xadmin.sites.register(ClassifyTask)
+class ClassifyTaskAdmin(object):
+    list_display = ("number", "schedule", "ttype", "status", "update_date", "rect_set", "owner")
+    list_display_links = ("number",)
+    list_filter = ("number", 'update_date')
+    search_fields = ["owner", "status" ]
+    list_editable = ('owner', "status")
+    date_hierarchy = 'update_date'  # 详细时间分层筛选
+    relfield_style = "fk-select"
+
 # @xadmin.sites.register(Task)
 # class TaskAdmin(object):
 #     list_display = ("number", "schedule", "ttype", "status", "date", "rect_set", "data")

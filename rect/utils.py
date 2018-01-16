@@ -3,7 +3,7 @@
 import re
 import os
 import oss2
-from rect.models import ORGGroup, SliceType, PageRect, Rect, Page, TaskStatus, CCTask, ClassifyTask, PageTask
+from rect.models import ORGGroup, SliceType, PageRect, Rect, Page, TaskStatus, CCTask, ClassifyTask, PageTask, CharClassifyPlan
 import zipfile
 import json
 from django.db import transaction
@@ -246,8 +246,8 @@ class AliBatchParser(BatchParser):
 class AllocateTask(object):
     class Config:
         CCTASK_COUNT = 20
-        DEFAULT_COUNT = 10
-        BULK_TASK_COUNT = 20
+        DEFAULT_COUNT = 20
+        BULK_TASK_COUNT = 30
 
     def __init__(self, schedule, reel = None):
         self.schedule = schedule
@@ -291,45 +291,60 @@ class CCAllocateTask(AllocateTask):
         total_tasks += len(task_set)
         return total_tasks
 
+def batch(iterable, n = 1):
+    current_batch = []
+    for item in iterable:
+        current_batch.append(item)
+        if len(current_batch) == n:
+            yield current_batch
+            current_batch = []
+    if current_batch:
+        yield current_batch
 
+# for x in batch(range(0, 10), 3):
+# 	print(x)
 class ClassifyAllocateTask(AllocateTask):
 
     def allocate(self):
-        return 0
-
-    def allocate2(self):
-        #ClassifyTask = ContentType.objects.get(app_label='rect', model='classifytask').model_class()
-        batch = self.schedule.batch
-        json_data = json.loads(self.schedule.desc)
-        count = json_data['block_size']
-        target_char_set = json_data['scope']
         rect_set = []
         word_set = {}
         task_set = []
-        if target_char_set == "all":
-           query_set = Rect.objects.filter(batch=batch).order_by('ch')
-        else:
-            #target_char_set = target_char_set.split(',')
-            query_set = Rect.objects.filter(word__in=target_char_set).order_by('ch')
+        # if target_char_set == "all":
+        #    query_set = Rect.objects.filter(batch=batch).order_by('ch')
+        # else:
+        count = AllocateTask.Config.DEFAULT_COUNT
+        reel_ids = self.schedule.reels.values_list('rid', flat=True)
+        base_queryset = Rect.objects.filter(reel_id__in=reel_ids)
+        total_tasks = 0
+        # 首先找出这些计划准备表
+        for plans in batch(CharClassifyPlan.objects.filter(schedule=self.schedule), 1):
+            # 然后把分组的计划变成，不同分片的queryset组拼接
+            questsets = [base_queryset.filter(ch=_plan.ch, wcc__lte=_plan.wcc_threshold) for _plan in plans]
+            if len(questsets) > 1:
+                queryset = questsets[0].union(*questsets[1:])
+            else:
+                queryset = questsets[0]
+            # 每组去递归补足每queryset下不足20单位的情况
+            for no, rect in enumerate(queryset, start=1):
+                rect_set.append(rect.serialize_set)
+                word_set[rect.ch] = 1
 
-        for no, rect in enumerate(query_set, start=1):
-            rect_set.append(rect.id.hex)
-            word_set[rect.ch] = 1
-
-            if len(rect_set) == count:
-                task_no = "%s_%07X" % (self.schedule.name, int(no/count))
-                task = ClassifyTask(number=task_no, schedule=self.schedule, ttype=SliceType.CLASSIFY, count=count,
-                                    rect_set=ClassifyTask.serialize_set(rect_set),
-                                    char_set=ClassifyTask.serialize_set(word_set.keys()))
-                rect_set.clear()
-                word_set.clear()
-                task_set.append(task)
-                if len(task_set) == count:
-                    ClassifyTask.objects.bulk_create(task_set)
-                    task_set.clear()
+                if len(rect_set) == count:
+                    task_no = "%s_%07X" % (self.schedule.schedule_no,  self.task_id())
+                    task = ClassifyTask(number=task_no, schedule=self.schedule, ttype=SliceType.CLASSIFY, count=count,
+                                        rect_set=list(rect_set),
+                                        char_set=ClassifyTask.serialize_set(word_set.keys()))
+                    rect_set.clear()
+                    word_set.clear()
+                    task_set.append(task)
+                    if len(task_set) == AllocateTask.Config.BULK_TASK_COUNT:
+                        ClassifyTask.objects.bulk_create(task_set)
+                        total_tasks += len(task_set)
+                        task_set.clear()
 
         ClassifyTask.objects.bulk_create(task_set)
-
+        total_tasks += len(task_set)
+        return total_tasks
 
 
 class PerpageAllocateTask(AllocateTask):
@@ -370,7 +385,7 @@ def allocateTasks(schedule, reel, type):
     if type == SliceType.CC: # 置信度
         allocator = CCAllocateTask(schedule, reel)
     elif type == SliceType.CLASSIFY: # 聚类
-        allocator = ClassifyAllocateTask(schedule, reel)
+        allocator = ClassifyAllocateTask(schedule)
     elif type == SliceType.PPAGE: # 逐页浏览
         allocator = PerpageAllocateTask(schedule, reel)
     if allocator:
