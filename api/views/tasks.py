@@ -138,7 +138,6 @@ class PageTaskViewSet(mixins.RetrieveModelMixin,
     queryset = PageTask.objects.all()
     serializer_class = PageTaskSerializer
 
-
     @list_route(methods=['get'], url_path='obtain')
     def obtain(self, request):
         staff = request.user
@@ -146,10 +145,16 @@ class PageTaskViewSet(mixins.RetrieveModelMixin,
         if not task:
             return Response({"status": -1,
                              "msg": "All tasks has been done!"})
-        pages = PageRect.objects.filter(id__in=task.pages).select_related('page')
+        pagerect_ids = [page['id'] for page in task.page_set]
+        pages = PageRect.objects.filter(id__in=pagerect_ids).select_related('page')
+        page_id = pages[0].page_id
+        _rects = Rect.objects.filter(page_code=page_id).all()
+        rects = RectSerializer(data=_rects, many=True)
+        rects.is_valid()
         return Response({
-                        "pages": PageRectSerializer(pages, many=True).data,
-                        "task_id": task.id})
+                        "rects": rects.data,
+                        "page_id": page_id,
+                        "task_id": task.pk})
 
 
     @detail_route(methods=['post'], url_path='abandon')
@@ -169,19 +174,21 @@ class PageTaskViewSet(mixins.RetrieveModelMixin,
     @transaction.atomic
     def tobe_done(self, request, pk):
         task = PageTask.objects.get(pk=pk)
+        can_write_fields = getattr(RectSerializer.Meta, 'can_write_fields', [])
+
         if (task.owner != request.user):
             return Response({"status": -1,
                              "msg": "No Permission!"})
-        for page in request.data['pages']:
-            page_id = page['id']
-            page.pop('s3_uri', None)
-            page_rect = PageRect.objects.filter(pk=page_id).first()
-            if page_rect:
-                page_rect.json_rects = page.pop('json_rects', None)
-                page_rect.op = OpStatus.CHANGED
-                page_rect.save()
-        task.done()
-        return Response({
-            "status": 0,
-            "task_id": pk
-        })
+
+        rect_set = [dict((k,v) for (k,v) in filter(lambda x:x[0] in can_write_fields,
+            rect.items())) for rect in request.data['rects']]
+        rects = RectSerializer(data=rect_set, many=True)
+        if rects.is_valid():
+            rects.save()
+            task.done()
+            return Response({"status": 0,
+                             "task_id": pk })
+
+        return Response({ "status": -1,
+                "msg": rects.errors
+            })

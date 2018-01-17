@@ -102,6 +102,7 @@ class PageStatus:
         (MARKED, u'已入卷标记'),
     )
 class TaskStatus:
+    NOT_READY = 10
     NOT_GOT = 0
     EXPIRED = 1
     ABANDON = 2
@@ -118,7 +119,7 @@ class TaskStatus:
         (DISCARD, u'已作废'),
     )
     #未完成状态.
-    remain_status = [NOT_GOT, EXPIRED, ABANDON, HANDLING]
+    remain_status = [NOT_READY, NOT_GOT, EXPIRED, ABANDON, HANDLING]
 
 class PriorityLevel:
     LOW = 1
@@ -342,18 +343,9 @@ class PageRect(models.Model):
         verbose_name_plural = u"源页切分集管理"
         ordering = ('id',)
 
-    # @property
-    # def rect_set(self):
-    #     try:
-    #         ret = json.loads(self._rect_set)
-    #     except ValueError:
-    #         return {}
-    #     return ret
-
-
-    # @rect_set.setter
-    # def rect_set(self, val):
-    #     self._rect_set = json.dumps(val)
+    @property
+    def serialize_set(self):
+        return dict((k, v) for k, v in self.__dict__.items() if not k.startswith("_"))
 
     @property
     def s3_uri(self):
@@ -645,7 +637,7 @@ class Reel_Task_Statistical(models.Model):
     class Meta:
         verbose_name = u"实体卷任务统计"
         verbose_name_plural = u"实体卷任务统计管理"
-        ordering = ('schedule', 'reel')
+        ordering = ('schedule', '-updated_at')
 
 
 class Task(models.Model):
@@ -745,7 +737,7 @@ class CCTask(Task):
     count = models.IntegerField("任务字块数", default=20)
     cc_threshold = models.FloatField("最高置信度")
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='cc_tasks')
-    rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_id, rect_id]
+    rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_json]
 
     class Meta:
         verbose_name = u"置信校对任务"
@@ -758,7 +750,7 @@ class ClassifyTask(Task):
     count = models.IntegerField("任务字块数", default=10)
     char_set = models.TextField(null=True, blank=True, verbose_name=u'字符集')
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='classify_tasks')
-    rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_id, rect_id]
+    rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_json]
 
     class Meta:
         verbose_name = u"聚类校对任务"
@@ -769,7 +761,7 @@ class PageTask(Task):
                                  verbose_name=u'切分计划')
     count = models.IntegerField("任务页的数量", default=1)
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='page_tasks')
-    page_set = JSONField(default=list, verbose_name=u'页的集合') # [page_id, page_id]
+    page_set = JSONField(default=list, verbose_name=u'页的集合') # [page_json]
 
     class Meta:
         verbose_name = u"逐字校对任务"
