@@ -84,7 +84,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rect',
     'storages',
-    'sutra',
+    #'sutra',
     'xapps',
     #'xcms'
     # 'celery',

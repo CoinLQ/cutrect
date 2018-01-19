@@ -101,6 +101,5 @@ class ArrangeRect(object):
         col_rect = ArrangeRect.dequefilter(cut_result, ArrangeRect.intersect_with(_rect))
         if not col_rect:
             col_rect = ArrangeRect.dequefilter(cut_result, ArrangeRect.inside_with(_rect))
-            import pdb;pdb.set_trace()
             print("Hint: inner case!")
         return sorted(col_rect, key=lambda Y: int(Y['y']))

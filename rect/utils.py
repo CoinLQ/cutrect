@@ -3,7 +3,8 @@
 import re
 import os
 import oss2
-from rect.models import ORGGroup, SliceType, PageRect, Rect, Page, TaskStatus, CCTask, ClassifyTask, PageTask, CharClassifyPlan
+from rect.models import ORGGroup, SliceType, PageRect, Rect, Page, TaskStatus, CCTask, \
+                 ClassifyTask, PageTask, CharClassifyPlan, DeletionCheckItem, DelTask
 import zipfile
 import json
 from django.db import transaction
@@ -286,8 +287,12 @@ class CCAllocateTask(AllocateTask):
                     CCTask.objects.bulk_create(task_set)
                     total_tasks += len(task_set)
                     task_set.clear()
-        # import pdb;pdb.set_trace()
-        # [ q.save() for q in task_set ]
+        if len(rect_set) > 0:
+            task_no = "%s_%s%05X" % (self.schedule.schedule_no, reel.rid, self.task_id())
+            task = CCTask(number=task_no, schedule=self.schedule, ttype=SliceType.CC, count=count, status=TaskStatus.NOT_GOT,
+                            rect_set=list(rect_set), cc_threshold=rect.cc)
+            rect_set.clear()
+            task_set.append(task)
         CCTask.objects.bulk_create(task_set)
         total_tasks += len(task_set)
         return total_tasks
@@ -336,13 +341,20 @@ class ClassifyAllocateTask(AllocateTask):
                                         rect_set=list(rect_set),
                                         char_set=ClassifyTask.serialize_set(word_set.keys()))
                     rect_set.clear()
-                    word_set.clear()
+                    word_set = {}
                     task_set.append(task)
                     if len(task_set) == AllocateTask.Config.BULK_TASK_COUNT:
                         ClassifyTask.objects.bulk_create(task_set)
                         total_tasks += len(task_set)
                         task_set.clear()
-
+        if len(rect_set) > 0:
+            task_no = "%s_%07X" % (self.schedule.schedule_no, self.task_id())
+            task = ClassifyTask(number=task_no, schedule=self.schedule, ttype=SliceType.CLASSIFY, count=count,
+                                status=TaskStatus.NOT_GOT,
+                                rect_set=list(rect_set),
+                                char_set=ClassifyTask.serialize_set(word_set.keys()))
+            rect_set.clear()
+            task_set.append(task)
         ClassifyTask.objects.bulk_create(task_set)
         total_tasks += len(task_set)
         return total_tasks
@@ -407,7 +419,29 @@ class AbsentpageAllocateTask(AllocateTask):
         return total_tasks
 
 
+class DelAllocateTask(AllocateTask):
 
+    def allocate(self):
+        rect_set = []
+        task_set = []
+        count = AllocateTask.Config.PAGETASK_COUNT
+        total_tasks = 0
+        for items in batch(DeletionCheckItem.objects.filter(del_task_id=None), 10):
+            if len(items) == 10:
+                rect_set = list(map(lambda x:x.pk.hex, items))
+                task_no = "%s_%07X" % ('DelTask', self.task_id())
+                task = DelTask(number=task_no,  ttype=SliceType.VDEL,
+                                rect_set=rect_set)
+                rect_set.clear()
+                task_set.append(task)
+                if len(task_set) == AllocateTask.Config.BULK_TASK_COUNT:
+                    DelTask.objects.bulk_create(task_set)
+                    total_tasks += len(task_set)
+                    task_set.clear()
+        DelTask.objects.bulk_create(task_set)
+        total_tasks += len(task_set)
+        task_set.clear()
+        return total_tasks
 
 def allocateTasks(schedule, reel, type):
     allocator = None
