@@ -1,0 +1,225 @@
+{% extends "common/base.html" %}
+
+{% block extrastyle %}
+<title>字形列表</title>
+<link rel="stylesheet" href="/static/characters/css/simplePagination.css">
+<link rel="stylesheet" href="/static/characters/css/app.css">
+<style>
+.popover {
+    width: auto;
+    max-width: 2048px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="app" class="container" >
+    <div class='row'>
+        <!--end col-md-3 -->
+        <div class='col-md-12 col-xs-12' style="margin-top:20px;">
+            <div class='row'>
+                <label>设置置信度:
+                    <input class="accuracy_input form-control-inline" v-model="inputCC" @keyup.enter="changeCC(inputCC)" style="margin-top:2px;" />
+                </label>
+            </div>
+
+            <div style="clear:both;"> </div>
+            <div id='charBrowseArea' style="margin-right:-15px;margin-left:18px;display:none">
+            </div>
+            <div style="clear:both;"> </div>
+
+            <div id="charListArea" style="margin-right:-15px;margin-left:18px;display: inline-block">
+                <div v-for="rect in rects" class="inner-wrapper" style="display: inline-block; margin: 5px;">
+                    <rectitem :item="rect" ></rectitem>
+                </div>
+            </div>
+
+
+            <div style="clear:both;"> </div>
+
+            <div class="page-wrapper" id="pageDiv" onselectstart="return false">
+                <span class='pagitor first btn btn-default' id='char_index_first'><span class="fa fa-step-backward" @click="loadRect(1)"></span></span>
+                <span class='pagitor more-padding previous btn btn-default' @click="loadRect(page - 1)">❮</span>
+                <input class='form-control-inline pagitor_input input-sm' v-model="inputPage" @keyup.enter="loadRect(inputPage)" type='number' min="1" value='1'>
+                <span class='pagitor more-padding next btn btn-default' @click="loadRect(page + 1)">❯</span>
+                <span class='pagitor last btn btn-default' id='char_index_last'><span class="fa fa-step-forward" @click="loadRect(total_pages)"></span></span>
+                <span class='pagitor_of total_page'>第[[page]]页, 共[[total_pages]]页, 共[[total_entries]]字</span>
+
+                <div class="btn-group">
+                  <button class="btn btn-default btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    [[page_size]] <span class="caret"></span>
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a href="javascript:;" @click="setPageSize(10)">10&nbsp;</a></li>
+                    <li><a href="javascript:;" @click="setPageSize(20)">20&nbsp;</a></li>
+                    <li><a href="javascript:;" @click="setPageSize(50)">50&nbsp;</a></li>
+                    <li><a href="javascript:;" @click="setPageSize(100)">100&nbsp;</a></li>
+                    <li><a href="javascript:;" @click="setPageSize(200)">200&nbsp;</a></li>
+                  </ul>
+                </div>
+                <label style="line-height: 31px;">字/页</label>
+            </div>
+
+            <div style="clear:both;"> </div>
+            <div class="pagec" id="pagearea">
+            <ul class="pagination">
+            </ul>
+            </div>
+        </div>
+        <!--end col-md-9 -->
+    </div>
+    <!--endrow-->
+    <div class="loading_icon">
+        <!-- Place at bottom of page -->
+
+    </div>
+</div>
+<!-- /.container -->
+{% endblock %}
+
+{% block extrabody %}
+<script src="/static/bootstrap/js/bootstrap.min.js"></script>
+<script src="/static/js/vue/vue.min.js"></script>
+<script src="/static/js/vue/axios.min.js"></script>
+<script type="text/javascript">
+
+Vue.component('rectitem', {
+    template: '<div><img :src="clip"/><br><span>[[item.ch]]&nbsp;&nbsp;[[item.cc]]</span></div>',
+    props:['item'],
+    delimiters: ['[[', ']]'],
+    mounted: function () {
+        console.log("mounted="+this.item);
+        this.loadImage(this.item);
+    },
+    data: function () {
+        return {
+            image: null,
+            clip: '/static/img/FhHRx.gif',
+        }
+    },
+    watch: {
+       item: function (newRect) {
+           console.log("watch="+newRect);
+           this.clip = '/static/img/FhHRx.gif';
+           this.loadImage(newRect);
+       }
+    },
+    methods: {
+        loadImage: function (rect) {
+            if(rect){
+                if(!this.image){
+                    this.image = new Image();
+                    this.image.crossOrigin = "*";
+                    this.image.onload = function(evt){
+                        var columnSet = eval("(" + rect.column_set+")");
+                        this.clip = this.getImageClip(evt.target, rect.w, rect.h, rect.x - columnSet.x, rect.y - columnSet.y, 1);
+                    }.bind(this);
+                }
+                this.image.src = this.getImageUrl(rect.column_code);
+            }
+        },
+        //https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/GZ/000790/v030/GZ000790v030p0010005.jpg
+        getImageUrl: function (column_code) {
+            const regex = /^([A-Z]+)(\d+)(v\d+)(p\d+)\w*/;
+            if(regex.test(column_code)){
+                var re = regex.exec(column_code);
+                return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/"+re[1]+"/"+re[2]+"/"+re[3]+"/"+column_code+".jpg";
+            }
+            //说明column_code不匹配规则, 默认显示加载中...todo 后续改加载失败的图片.
+            this.clip = '/static/img/FhHRx.gif';
+        },
+        getImageClip: function(imgObj, newWidth, newHeight, startX, startY, ratio) {
+
+            /* the parameters: - the image element - the new width - the new height - the x point we start taking pixels - the y point we start taking pixels - the ratio */
+            //set up canvas for thumbnail
+
+            var tnCanvas = document.createElement('canvas');
+            var tnCanvasContext = tnCanvas.getContext('2d');
+            var bufferCanvas = document.createElement('canvas');
+            var bufferContext = bufferCanvas.getContext('2d');
+            tnCanvas.width = newWidth; tnCanvas.height = newHeight;
+
+            /* use the sourceCanvas to duplicate the entire image. This step was crucial for iOS4 and under devices. Follow the link at the end of this post to see what happens when you don’t do this */
+
+            bufferCanvas.width = imgObj.width;
+            bufferCanvas.height = imgObj.height;
+            bufferContext.drawImage(imgObj, 0, 0);
+
+            /* now we use the drawImage method to take the pixels from our bufferCanvas and draw them into our thumbnail canvas */
+            tnCanvasContext.drawImage(bufferCanvas, startX, startY, newWidth * ratio, newHeight * ratio,0,0, newWidth, newHeight);
+            return tnCanvas.toDataURL("image/png");
+        }
+    }
+});
+
+var schedule_id = '{{ schedule_id|escapejs }}';
+var app = new Vue({
+    el: '#app',
+    delimiters: ['[[', ']]'],
+    data: {
+        schedule_id: schedule_id,
+        rects: [],
+        cc: 0.65,
+        inputCC: this.cc,
+        page: 1,
+        inputPage: this.page,
+        page_size: 20,
+        total_pages: 1,
+        total_entries: 0,
+    },
+    mounted: function () {
+        console.log('zp schedule_no='+this.schedule_id);
+        this.inputCC = this.cc;
+        this.inputPage = this.page;
+        this.loadRect(this.page)
+    },
+    methods:{
+        changeCC: function (inputCC) {
+            if(inputCC != this.cc){
+                this.innerLoadRect(1, inputCC, this.page_size);
+            }
+        },
+        setPageSize: function (size) {
+            if(size >= 10 && size != this.page_size){
+                this.innerLoadRect(1, this.cc, size);
+            }
+        },
+        loadRect: function (pagenum) {
+            this.innerLoadRect(pagenum, this.cc, this.page_size);
+        },
+        innerLoadRect: function (pagenum, cc, page_size) {
+            console.log('loadRect='+pagenum);
+            var that = this;
+            axios.get("/api/rect/ccreview/", {
+                params: {
+                    'schedule_id': this.schedule_id,
+                    'cc': cc,
+                    'page': pagenum,
+                    'page_size': page_size
+                }
+            }).then(function(response){
+                console.log(response);
+                if(response.status == 200){
+                    var ddd = response.data;
+                    if(ddd){
+                        //that.schedule_id = ddd.schedule_id;
+                        //that.cc = ddd.cc;
+                        if(cc != that.cc) that.cc = cc;
+                        that.page = ddd.pagination.page;
+                        that.inputPage = that.page;
+                        that.page_size = ddd.pagination.page_size;
+                        that.total_pages = ddd.pagination.total_pages;
+                        that.total_entries = ddd.pagination.total_entries;
+                        that.rects = ddd.models;
+
+                    }
+                }
+            }).catch(function (error) {
+                console.log(error);
+            })
+        }
+    }
+});
+
+</script>
+{% endblock %}
