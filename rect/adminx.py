@@ -125,9 +125,19 @@ class Schedule_Task_StatisticalAdmin(object):
 
 @xadmin.sites.register(Reel_Task_Statistical)
 class Reel_Task_StatisticalAdmin(object):
+    def resume_pptask(self, instance):
+        task_header = "%s_%s" % (instance.schedule.schedule_no, instance.reel_id)
+        count = PageTask.objects.filter(number__regex=r'^' + task_header + r'.*' , status=TaskStatus.NOT_READY).count()
+        if count > 0:
+            return """<a class='btn btn-success' href='/xadmin/rect/reel_pptask/open/?schedule_no=%s&reel_id=%s&pk=%s'>%s</a>""" % (instance.schedule.schedule_no,  instance.reel_id, instance.pk,  u"打开逐字校对")
+        return '已打开'
+    resume_pptask.short_description = "打开逐字校对"
+    resume_pptask.allow_tags = True
+    resume_pptask.is_column = True
+
     list_display = ('schedule', 'reel', 'amount_of_cctasks', 'completed_cctasks',
         'amount_of_absenttasks', 'completed_absenttasks', 'amount_of_pptasks',
-        'completed_pptasks', 'updated_at')
+        'completed_pptasks', 'updated_at', 'resume_pptask')
     list_display_links = ('completed_cctasks', 'reel')
     search_fields = ('schedule', 'reel')
     list_filter = ('completed_cctasks',)
@@ -166,15 +176,35 @@ class ClassifyTaskAdmin(object):
     date_hierarchy = 'update_date'  # 详细时间分层筛选
     relfield_style = "fk-select"
 
-# @xadmin.sites.register(Task)
-# class TaskAdmin(object):
-#     list_display = ("number", "schedule", "ttype", "status", "date", "rect_set", "data")
-#     list_display_links = ("number", 'status')
-#     list_filter = ('schedule', 'type', 'status', 'date')
-#     search_fields = ["number" ]
-#     date_hierarchy = 'date'
-#     relfield_style = "fk-select"
-#     reversion_enable = True
+@xadmin.sites.register(DelTask)
+class DelTaskAdmin(object):
+    list_display = ("number", "schedule", "ttype", "status", "update_date", "rect_set", "owner")
+    list_display_links = ("number",)
+    list_filter = ("number", 'update_date')
+    search_fields = ["owner", "status" ]
+    list_editable = ('owner', "status")
+    date_hierarchy = 'update_date'  # 详细时间分层筛选
+    relfield_style = "fk-select"
+
+@xadmin.sites.register(PageTask)
+class PageTaskAdmin(object):
+    list_display = ("number", "schedule", "ttype", "status", "update_date", "page_set", "owner")
+    list_display_links = ("number",)
+    list_filter = ("number", 'update_date')
+    search_fields = ["owner", "status" ]
+    list_editable = ('owner', "status")
+    date_hierarchy = 'update_date'  # 详细时间分层筛选
+    relfield_style = "fk-select"
+
+@xadmin.sites.register(AbsentTask)
+class AbsentTaskAdmin(object):
+    list_display = ("number", "schedule", "ttype", "status", "update_date", "page_set", "owner")
+    list_display_links = ("number",)
+    list_filter = ("number", 'update_date')
+    search_fields = ["owner", "status" ]
+    list_editable = ('owner', "status")
+    date_hierarchy = 'update_date'  # 详细时间分层筛选
+    relfield_style = "fk-select"
 
 
 # @xadmin.sites.register(Patch)

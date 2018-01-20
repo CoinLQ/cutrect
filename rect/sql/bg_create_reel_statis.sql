@@ -8,6 +8,6 @@ $fn_create_reelstatis$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS fn_create_reelstatis ON rect_schedule_reels;
 CREATE TRIGGER fn_create_reelstatis
-    BEFORE INSERT OR UPDATE ON rect_schedule_reels
+    BEFORE INSERT ON rect_schedule_reels
             FOR EACH ROW
             EXECUTE PROCEDURE fn_create_reelstatis();

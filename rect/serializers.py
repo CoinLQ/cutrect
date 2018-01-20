@@ -84,6 +84,11 @@ class PageSerializer(serializers.ModelSerializer):
         model = Page
         fields = '__all__'
 
+class DelTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DelTask
+        fields = '__all__'
+
 
 # class PatchSerializer(serializers.ModelSerializer):
 #     class Meta:

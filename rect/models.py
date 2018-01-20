@@ -9,9 +9,10 @@ from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from jwt_auth.models import Staff
 from django.utils.timezone import localtime, now
-from functools import wraps
+from functools import wraps, reduce
 import json
 import urllib.request
+import collections
 from jsonfield import JSONField
 from django.db import connection, transaction
 from django.db.models import Sum, Case, When, Value, Count, Avg, F
@@ -102,6 +103,7 @@ class PageStatus:
         (MARKED, u'已入卷标记'),
     )
 class TaskStatus:
+    NOT_READY = 10
     NOT_GOT = 0
     EXPIRED = 1
     ABANDON = 2
@@ -118,7 +120,7 @@ class TaskStatus:
         (DISCARD, u'已作废'),
     )
     #未完成状态.
-    remain_status = [NOT_GOT, EXPIRED, ABANDON, HANDLING]
+    remain_status = [NOT_READY, NOT_GOT, EXPIRED, ABANDON, HANDLING]
 
 class PriorityLevel:
     LOW = 1
@@ -342,18 +344,9 @@ class PageRect(models.Model):
         verbose_name_plural = u"源页切分集管理"
         ordering = ('id',)
 
-    # @property
-    # def rect_set(self):
-    #     try:
-    #         ret = json.loads(self._rect_set)
-    #     except ValueError:
-    #         return {}
-    #     return ret
-
-
-    # @rect_set.setter
-    # def rect_set(self, val):
-    #     self._rect_set = json.dumps(val)
+    @property
+    def serialize_set(self):
+        return dict((k, v) for k, v in self.__dict__.items() if not k.startswith("_"))
 
     @property
     def s3_uri(self):
@@ -362,54 +355,46 @@ class PageRect(models.Model):
     def rebuild_rect(self):
         if len(self.rect_set) == 0:
             return
-        cids = list(map(lambda X: X["char_id"], self.rect_set))
-        Rect.objects.filter(reel=self.reel, cid__in=cids).all().delete()
-        rect_list = list()
-        columns, column_len = ArrangeRect.resort_rects_from_list(self.rect_set)
-        for lin_n, line in columns.items():
-            for col_n, _rect in enumerate(line, start=1):
-                _rect['line_no'] = lin_n
-                _rect['char_no'] = col_n
-                rect = Rect.generate(_rect)
-                rect.reel = self.reel
-                rect.page_code = self.page_id
-                rect_list.append(rect)
-        Rect.objects.bulk_create(rect_list)
-        self.line_count = max(map(lambda Y: Y.line_no, rect_list))
-        self.column_count = max(map(lambda Y: Y.char_no, rect_list))
-        self.save()
+        Rect.objects.filter(page_code=self.page_id).all().delete()
+        return PageRect.align_rects_bypage(self, self.rect_set)
 
     @classmethod
-    @transaction.atomic
     def reformat_rects(cls, page_id):
         ret = True
         rects = Rect.objects.filter(page_code=page_id).all()
-        page = Page.objects.get(pk=page_id)
+        pagerect = PageRect.objects.filter(page_id=page_id).first()
         if rects.count() == 0:
             return ret
+        return PageRect.align_rects_bypage(pagerect, rects)
+
+    @classmethod
+    def align_rects_bypage(cls, pagerect, rects):
+        ret = True
         columns, column_len = ArrangeRect.resort_rects_from_qs(rects)
+        page = pagerect.page
         rect_list = list()
         for lin_n, line in columns.items():
-            for col_n, _rect in enumerate(line, start=1):
+            for col_n, _r in enumerate(line, start=1):
+                _rect = DotMap(_r)
                 _rect['line_no'] = lin_n
                 _rect['char_no'] = col_n
-                rect = Rect.generate(_rect)
-                rect.id = _rect['id'] or rect.id
-                rect.reel_id = page.reel_id
-                rect.page_code = page_id
+                _rect['page_code'] = pagerect.page_id
+                _rect['reel_id'] = pagerect.reel_id
+                _rect = Rect.normalize(_rect)
                 try :
-                    column_dict = (item for item in page.json if item["col_id"] == rect.cncode).__next__()
-                    rect.column_set = column_dict
+                    # 这里以左上角坐标，落在哪个列数据为准
+                    column_dict = (item for item in page.json if item["x"] <= _rect['x'] and _rect['x'] <= item["x1"] and
+                                                item["y"] <= _rect['y'] and _rect['y'] <= item["y1"] ).__next__()
+                    _rect['column_set'] = column_dict
                 except:
                     ret = False
-                    print(rect.cncode + ': col_pos doesn\'t exist!')
-                rect_list.append(rect)
-        [rect.save() for rect in rect_list]
-        pagerect = PageRect.objects.filter(page_id=page_id).first()
-        pagerect.line_count = max(map(lambda Y: Y.line_no, rect_list))
-        pagerect.column_count = max(map(lambda Y: Y.char_no, rect_list))
+                rect_list.append(_rect)
+        Rect.bulk_insert_or_replace(rect_list)
+        pagerect.line_count = max(map(lambda Y: Y['line_no'], rect_list))
+        pagerect.column_count = max(map(lambda Y: Y['char_no'], rect_list))
         pagerect.save()
         return ret
+
 
 @iterable
 class Rect(models.Model):
@@ -438,7 +423,12 @@ class Rect(models.Model):
     ts = models.CharField(null=True, blank=True, verbose_name=u'标字', max_length=2, default='')
     s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
                                   storage='storages.backends.s3boto.S3BotoStorage')
-    updated_at = models.DateTimeField(verbose_name='更新时间', auto_now=True)
+    updated_at = models.DateTimeField(verbose_name='更新时间1', auto_now=True)
+
+    class DefaultDict(dict):
+
+        def __missing__(self, key):
+            return None
 
     @property
     def rect_sn(self):
@@ -446,6 +436,23 @@ class Rect(models.Model):
 
     def __str__(self):
         return self.ch
+
+    def column_uri(self):
+        col_id = self.column_set['col_id']
+        return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%s/%s.jpg' % (col_id[0:2], col_id[2:8], col_id[8:12], col_id)
+
+    @staticmethod
+    def canonicalise_uuid(uuid):
+        import re
+        uuid = str(uuid)
+        _uuid_re = re.compile(r'^[0-9A-Fa-f]{8}-(?:[0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}$')
+        _hex_re = re.compile(r'^[0-9A-Fa-f]{32}$')
+        if _uuid_re.match(uuid):
+            return uuid.upper()
+        if _hex_re.match(uuid):
+            return '-'.join([uuid[0:8], uuid[8:12], uuid[12:16],
+                            uuid[16:20], uuid[20:]]).upper()
+        return None
 
     @property
     def serialize_set(self):
@@ -456,37 +463,57 @@ class Rect(models.Model):
         return "%s%02d" % (self.page_code, self.line_no)
 
     @staticmethod
-    def generate(dict={}):
-        getVal = lambda key, default=None: dict[key] if key in dict and dict[key] else default
-        rect = Rect()
-        rect.x = getVal('id')
-        rect.x = getVal('x')
-        rect.y = getVal('y')
-        rect.w = getVal('w')
-        rect.h = getVal('h')
-        rect.char_no = getVal('char_no')
-        rect.line_no = getVal('line_no')
-        rect.cc = getVal('cc')
-        rect.wcc = getVal('wcc')
-        rect.ch = getVal('char') or getVal('ch')
-        rect.updated_at = getVal('updated_at')
+    def generate(rect_dict={}, exist_rects=[]):
+        _dict = Rect.DefaultDict()
+        for k, v in rect_dict.items():
+            _dict[k] = v
+        if type(_dict['id']).__name__ == "UUID":
+            _dict['id'] = _dict['id'].hex
+        try:
+            el = list(filter(lambda x: x.id.hex == _dict['id'].replace('-', ''), exist_rects))
+            rect = el[0]
+        except:
+            rect = Rect()
+        valid_keys = rect.serialize_set.keys()-['id']
+        key_set = set(valid_keys).intersection(_dict.keys())
+        for key in key_set:
+            if key in valid_keys:
+                setattr(rect, key, _dict[key])
+        rect.updated_at = localtime(now())
+        rect.cid = rect.rect_sn
+        rect.column_code = rect.cid[:20]
         rect = Rect.normalize(rect)
         return rect
 
     @staticmethod
-    def normalize(instance):
-        if (instance.w < 0):
-            instance.x = instance.x + instance.w
-            instance.w = abs(instance.w)
-        if (instance.h < 0):
-            instance.y = instance.y + instance.h
-            instance.h = abs(instance.h)
+    def bulk_insert_or_replace(rects):
+        updates = []
+        news = []
+        ids = [r['id'] for r in filter(lambda x: Rect.canonicalise_uuid(DotMap(x).id), rects)]
+        exists = Rect.objects.filter(id__in=ids)
+        for r in rects:
+            rect = Rect.generate(r, exists)
+            if (rect._state.adding):
+                news.append(rect)
+            else:
+                updates.append(rect)
+        Rect.objects.bulk_create(news)
+        Rect.objects.bulk_update(updates)
 
-        if (instance.w == 0):
-            instance.w = 1
-        if (instance.h == 0):
-            instance.h = 1
-        return instance
+    @staticmethod
+    def normalize(r):
+        if (r.w < 0):
+            r.x = r.x + r.w
+            r.w = abs(r.w)
+        if (r.h < 0):
+            r.y = r.y + r.h
+            r.h = abs(r.h)
+
+        if (r.w == 0):
+            r.w = 1
+        if (r.h == 0):
+            r.h = 1
+        return r
 
     class Meta:
         verbose_name = u"源-切字块"
@@ -581,12 +608,14 @@ class Schedule(models.Model):
         return self.name
 
     def create_reels_task(self):
-        # NOTICE: 实际这里不工作，多重关联这时并未创建成功。
+        pass
+        # NOTICE: 实际这里不必执行，多重关联这时并未创建成功。
         # 在数据库层用存储过程在关联表记录创建后，创建卷任务。
-        tasks = []
-        for reel in self.reels.all():
-            tasks.append(Reel_Task_Statistical(schedule=self, reel=reel))
-        Reel_Task_Statistical.objects.bulk_create(tasks)
+        # 为逻辑必要，留此函数
+        # tasks = []
+        # for reel in self.reels.all():
+        #     tasks.append(Reel_Task_Statistical(schedule=self, reel=reel))
+        # Reel_Task_Statistical.objects.bulk_create(tasks)
 
     class Meta:
         verbose_name = u"切分计划"
@@ -645,7 +674,7 @@ class Reel_Task_Statistical(models.Model):
     class Meta:
         verbose_name = u"实体卷任务统计"
         verbose_name_plural = u"实体卷任务统计管理"
-        ordering = ('schedule', 'reel')
+        ordering = ('schedule', '-updated_at')
 
 
 class Task(models.Model):
@@ -745,7 +774,7 @@ class CCTask(Task):
     count = models.IntegerField("任务字块数", default=20)
     cc_threshold = models.FloatField("最高置信度")
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='cc_tasks')
-    rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_id, rect_id]
+    rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_json]
 
     class Meta:
         verbose_name = u"置信校对任务"
@@ -758,7 +787,7 @@ class ClassifyTask(Task):
     count = models.IntegerField("任务字块数", default=10)
     char_set = models.TextField(null=True, blank=True, verbose_name=u'字符集')
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='classify_tasks')
-    rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_id, rect_id]
+    rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_json]
 
     class Meta:
         verbose_name = u"聚类校对任务"
@@ -769,7 +798,7 @@ class PageTask(Task):
                                  verbose_name=u'切分计划')
     count = models.IntegerField("任务页的数量", default=1)
     owner = models.ForeignKey(Staff, null=True, blank=True, related_name='page_tasks')
-    page_set = JSONField(default=list, verbose_name=u'页的集合') # [page_id, page_id]
+    page_set = JSONField(default=list, verbose_name=u'页的集合') # [page_json]
 
     class Meta:
         verbose_name = u"逐字校对任务"
@@ -798,6 +827,14 @@ class DelTask(Task):
         verbose_name = u"删框任务"
         verbose_name_plural = u"删框任务管理"
 
+    def execute(self, user):
+        self.del_task_items.update(verifier=user)
+        for item in self.del_task_items:
+            if item.result == ReviewResult.AGREE:
+                item.confirm()
+            else:
+                item.undo()
+
 
 class ReviewTask(Task):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='review_tasks', on_delete=models.SET_NULL,
@@ -809,7 +846,6 @@ class ReviewTask(Task):
     class Meta:
         verbose_name = u"审定任务"
         verbose_name_plural = u"审定任务管理"
-
 
 
 class DeletionCheckItem(models.Model):
@@ -833,9 +869,24 @@ class DeletionCheckItem(models.Model):
     created_at = models.DateTimeField(verbose_name='删框时间', auto_now_add=True)
     updated_at = models.DateTimeField(null=True, blank=True, verbose_name=u'更新时间', auto_now=True)
 
+    @classmethod
+    def create_from_rect(cls, rects, t):
+        rect_ids = [rect ['id'] for rect in filter(lambda x: x['op'] == 3, rects)]
+        for r in Rect.objects.filter(id__in=rect_ids):
+            DeletionCheckItem(x=r.x, y=r.y, w=r.w, h=r.h, ocolumn_uri=r.column_uri(),
+                            ocolumn_x=r.column_set['x'], ocolumn_y=r.column_set['y'], ch=r.ch,
+                            rect_id=r.id, modifier=t.owner).save()
+
+    def undo(self):
+        Rect.objects.filter(pk=self.rect_id).update(op=2)
+
+    def confirm(self):
+        Rect.objects.filter(pk=self.rect_id).all().delete()
+
     class Meta:
         verbose_name = u"删框记录"
         verbose_name_plural = u"删框记录管理"
+
 
 class ActivityLog(models.Model):
     user = models.ForeignKey(Staff, related_name='activities')
@@ -897,8 +948,6 @@ class CharClassifyPlan(models.Model):
         self.wcc_threshold=wcc_threshold
         self.save()
 
-    def gen_classify_task(self):
-        ClassifyTask.objects.filter(char_set=self.ch).all().delete()
 
 
 
