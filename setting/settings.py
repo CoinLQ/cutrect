@@ -21,13 +21,6 @@ from django.utils.translation import ugettext_lazy as _
 # https://cyrusin.github.io/2015/12/08/python-20151208/
 #sys.setrecursionlimit(5000)
 
-# mysql 数据库
-import pymysql
-pymysql.install_as_MySQLdb()
-
-#
-
-BROKER_URL = 'django://localhost:8000//'
 
 if six.PY2 and sys.getdefaultencoding()=='ascii':
     import imp
@@ -86,9 +79,11 @@ INSTALLED_APPS = [
     'storages',
     #'sutra',
     'xapps',
-    #'xcms'
-    # 'celery',
-    #'kombu.transport.django', #http://blog.csdn.net/samed/article/details/50598371
+
+
+    'django_celery_beat',
+    'django_celery_results',
+    'celery',
 
 ]
 
@@ -333,11 +328,7 @@ CACHES = {
 # SESSION_CACHE_ALIAS = "default"
 # Redis Cache Settings end
 
-#django使用celery定时任务，使用redis和supervisor
-# http://blog.csdn.net/win_turn/article/details/60658525
-BROKER_URL = 'redis://localhost:6379'
-CELERY_BROKER_URL = 'redis://localhost:6379'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379'
+
 #使用 supervisor 管理进程
 #http://liyangliang.me/posts/2015/06/using-supervisor/
 #Celery Tasks 参数介绍.
@@ -345,3 +336,37 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379'
 
 
 DATABASE_ROUTERS = ['setting.db_router.DBRouter']
+
+# 定制celery任务，使用AWS的SQS服务
+CELERY_TIMEZONE = 'UTC'
+CELERY_ENABLE_UTC = True
+
+CELERY_BROKER_USER = os.environ.get('AWS_ACCESS_KEY', '')
+CELERY_BROKER_PASSWORD = os.environ.get('AWS_SECRET_KEY', '')
+
+CELERY_BROKER_TRANSPORT = 'sqs'
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'polling_interval': 3,
+    'region': 'cn-north-1',
+    'visibility_timeout': 3600,
+    'queue_name_prefix': 'lq-prod-'
+}
+
+CELERY_WORKER_STATE_DB = '/var/run/celery/worker.db'
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_WORKER_PREFETCH_MULTIPLIER = 0         # See https://github.com/celery/celery/issues/3712
+#CELERY_RESULT_BACKEND = 'sqla+sqlite:///results.sqlite'
+CELERY_RESULT_BACKEND = 'db+sqlite:///results.sqlite'
+CELERY_DEFAULT_QUEUE = 'lqcharacter_sqs'
+CELERY_QUEUES = {
+    CELERY_DEFAULT_QUEUE: {
+        'exchange': CELERY_DEFAULT_QUEUE,
+        'binding_key': CELERY_DEFAULT_QUEUE,
+    }
+}
+
+CELERY_BROKER_CONNECTION_RETRY=False
+
+CELERY_IMPORTS = (
+        'setting.celery_tasks',
+    )

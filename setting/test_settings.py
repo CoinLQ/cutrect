@@ -21,11 +21,6 @@ from django.utils.translation import ugettext_lazy as _
 # https://cyrusin.github.io/2015/12/08/python-20151208/
 #sys.setrecursionlimit(5000)
 
-# mysql 数据库
-import pymysql
-pymysql.install_as_MySQLdb()
-
-#
 
 BROKER_URL = 'django://localhost:8000//'
 
