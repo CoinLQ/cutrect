@@ -7,9 +7,10 @@ from rect.serializers import  PageSerializer, \
                 ScheduleSerializer, CCTaskSerializer, ClassifyTaskSerializer, \
                 PageTaskSerializer
 from rect.models import Page, PageRect, Rect, \
-                        Schedule, CCTask, ClassifyTask, PageTask
+                        Schedule, CharClassifyPlan, CCTask, ClassifyTask, PageTask
 
 from api.pagination import StandardPagination
+import math
 
 
 
@@ -50,6 +51,42 @@ class RectViewSet(viewsets.ModelViewSet, mixins.ListModelMixin):
             return Response({"status": -1,
                              "msg": "The schedule does not select reels!"})
         rects = Rect.objects.filter(reel__in=reelRids, cc__lte=cc).order_by("-cc")
+
+        page = self.paginate_queryset(rects)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(rects, many=True)
+        return Response(serializer.data)
+
+    @list_route(methods=['get'], url_path='cpreview')
+    def cpreview(self, request):
+        ccpid = self.request.query_params.get('ccpid', None)
+        wcc = self.request.query_params.get('wcc', None)
+        #char = self.request.query_params.get('char', None)
+        ccp = CharClassifyPlan.objects.get(id=ccpid)
+        char = ccp.ch
+        schedule_id = ccp.schedule_id
+
+        try:
+            schedule = Schedule.objects.get(pk=schedule_id)
+        except Schedule.DoesNotExist:
+            return Response({"status": -1,
+                             "msg": "not found schedule instance!"})
+
+        reelRids = [reel.rid for reel in schedule.reels.all()]
+        if len(reelRids) <= 0 :
+            return Response({"status": -1,
+                             "msg": "The schedule does not select reels!"})
+        rects = Rect.objects.filter(reel__in=reelRids, ch=char).order_by("-wcc")
+
+        if wcc:
+            # 如果设置了wcc的值, 会自动设置到wcc附近的页码
+            # 计算大于wcc的字数
+            count = rects.filter(wcc__gte=wcc).count()
+            page_size = self.paginator.get_page_size(request)
+            page = math.ceil(count/page_size)
+            # request.query_params[self.paginator.page_query_param] = page
 
         page = self.paginate_queryset(rects)
         if page is not None:

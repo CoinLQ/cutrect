@@ -24,7 +24,7 @@ class ClassifyDetailView(CommAdminView):
         char = cp.ch
         schedule_id = cp.schedule_id
 
-        context={'schedule_id':schedule_id, 'char':cp.ch }
+        context = {'ccpid': pid, 'schedule_id': schedule_id, 'char': cp.ch}
 
         return TemplateResponse(self.request, [
             'viewrects/cp_details.html'
