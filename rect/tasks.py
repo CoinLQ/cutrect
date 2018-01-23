@@ -2,22 +2,12 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task
 from django.contrib.contenttypes.models import ContentType
-from rect.utils import parseBatch, allocateTasks
+from rect.lib.gen_task import allocateTasks
 from rect.models import Schedule
 from setting import celery_app
 import os
 from django.dispatch import receiver
 from django.db import models
-
-
-# @shared_task
-# def parseBatchToPageRect(batchId=''):
-#     # 校验url是否正确
-#     if batchId:
-#         batch = Batch.objects.get(id=batchId)
-#         if batch:
-#             parseBatch(batch)
-
 
 
 
@@ -38,17 +28,3 @@ def clean_daily_page():
 def bg_create_pages(*args):
     pass
 
-
-@shared_task
-def add(x, y):
-    return x + y
-
-
-@shared_task
-def mul(x, y):
-    return x * y
-
-
-@shared_task
-def xsum(numbers):
-    return sum(numbers)

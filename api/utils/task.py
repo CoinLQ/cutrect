@@ -41,5 +41,5 @@ def retrieve_task(task_class, user):
     current = task_class.objects.filter(owner=user, status=TaskStatus.HANDLING).first()
     if not current:
         current = task_class.objects.filter(status__lt=TaskStatus.HANDLING).order_by('priority').first()
-        current.obtain(user)
+        current and current.obtain(user)
     return current
