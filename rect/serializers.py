@@ -66,8 +66,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     def get_number(self,obj):
         no = obj.number.split('_')[1]
-        leng = len(no)
-        return no[leng-5:leng]
+        return no[:-5]
 
 
 

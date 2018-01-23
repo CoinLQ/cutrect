@@ -2,7 +2,6 @@
 
 import re
 import os
-import oss2
 from rect.models import ORGGroup, SliceType, PageRect, Rect, Page, TaskStatus, CCTask, \
                  ClassifyTask, PageTask, CharClassifyPlan, DeletionCheckItem, DelTask
 import zipfile
@@ -17,27 +16,6 @@ import base64
 from django.utils.six import BytesIO
 from rest_framework.parsers import JSONParser
 
-# EndPoint: oss-cn-shanghai.aliyuncs.com
-# 访问域名: tripitaka.oss-cn-shanghai.aliyuncs.com
-# OSS_API_KEY: LTAIyXhhTQhZUhBW
-# OSS_API_SECRET: x6jpClbi6gnqMGspFZOPEszCaTB30o
-auth = oss2.Auth(os.environ.get('OSS_API_KEY', 'LTAIyXhhTQhZUhBW'), os.environ.get('OSS_API_SECRET', 'x6jpClbi6gnqMGspFZOPEszCaTB30o'))
-bucket = oss2.Bucket(auth, 'oss-cn-shanghai.aliyuncs.com', 'tripitaka')
-
-def get_oss_by_name(image_name):
-    file_name_list = image_name.split("-")[0].split("_")
-    return 'lqhansp/' + "/".join(file_name_list) + "/" + image_name
-
-
-def UploadImage(local_path):
-    filelist = os.listdir(local_path)
-    for file_ele in filelist:
-        if file_ele.split(".")[-1] == 'jpg':
-            bucket.put_object_from_file(get_oss_by_name(file_ele), local_path + file_ele)
-
-
-def is_img_exist(image_name):
-    return bucket.object_exists(get_oss_by_name(image_name))
 
 
 '''
