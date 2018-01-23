@@ -54,8 +54,8 @@ docker-compose exec web_lqcharacter /usr/local/bin/python manage.py migrate
 ### 应用环境设置(可能)
 把下列环境变量加入你的rc文件中，
 ```
-export OSS_API_KEY=<input>
-export OSS_API_SECRET=<input>
+export AWS_ACCESS_KEY=<input>
+export AWS_SECRET_KEY=<input>
 ```
 ###
 ### 启动应用
@@ -66,4 +66,9 @@ export OSS_API_SECRET=<input>
 ```
 cmd> python manage.py collectstatic --settings=lqcharacter.ci_settings
 conf> DJANGO_SETTINGS_MODULE=lqcharacter.ci_settings coverage run manage.py test
+```
+### Celery本地调试
+```
+celery -A setting worker --loglevel=info
+celery -A setting beat -l debug
 ```
