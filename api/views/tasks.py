@@ -4,7 +4,7 @@ from rect.serializers import CCTaskSerializer, DelTaskSerializer, ClassifyTaskSe
 from api.serializer import RectSerializer, PageRectSerializer, DeletionCheckItemSerializer, \
                 RectWriterSerializer
 from rect.models import CCTask, ClassifyTask, PageTask, Rect, PageRect, OpStatus, \
-                        DeletionCheckItem, DelTask
+                        DeletionCheckItem, DelTask, TaskStatus
 from rest_framework.response import Response
 from rest_framework.decorators import detail_route, list_route
 from api.utils.task import retrieve_cctask, retrieve_classifytask, \
@@ -23,8 +23,47 @@ class RectBulkOpMixin(object):
         rectset = RectWriterSerializer(data=rects, many=True)
         rectset.is_valid()
         Rect.bulk_insert_or_replace(rectset.data)
-        task.done()
         DeletionCheckItem.create_from_rect(rects, task)
+        task.done()
+
+    """
+    任务回顾
+    """
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if (not request.user.is_admin):
+            if (instance.owner != request.user):
+                return Response({"status": -1,
+                                 "msg": "No Permission!"})
+        serializer = self.get_serializer(instance)
+        if isinstance(instance, CCTask) or isinstance(instance, ClassifyTask):
+            return Response({"status": 0,
+                        "rects": instance.rect_set,
+                        "task_id": instance.pk})
+        if isinstance(instance, PageTask):
+            pagerect_ids = [page['id'] for page in instance.page_set]
+            pages = PageRect.objects.filter(id__in=pagerect_ids).select_related('page')
+            page_id = pages[0].page_id
+            _rects = Rect.objects.filter(page_code=page_id).all()
+            rects = RectSerializer(data=_rects, many=True)
+            rects.is_valid()
+            return Response({"status": 0,
+                            "rects": rects.data,
+                            "page_id": page_id,
+                            "task_id": instance.pk})
+        return Response(serializer.data)
+
+    @list_route( methods=['get'], url_path='history')
+    def history(self, request):
+        queryset = self.queryset.filter(owner=request.user, status=TaskStatus.COMPLETED)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class CCTaskViewSet(RectBulkOpMixin,
@@ -47,11 +86,8 @@ class CCTaskViewSet(RectBulkOpMixin,
             return Response({"status": -1,
                              "msg": u"有些字块不属于你的任务!"})
         rects = request.data['rects']
-        rectset = RectWriterSerializer(data=rects, many=True)
-        rectset.is_valid()
-        Rect.bulk_insert_or_replace(rectset.data)
-        task.done()
-        DeletionCheckItem.create_from_rect(rects, task)
+        task.rect_set = request.data['rects']
+        self.task_done(rects, task)
         return Response({"status": 0,
                             "task_id": pk })
 
@@ -100,11 +136,8 @@ class ClassifyTaskViewSet(RectBulkOpMixin,
             return Response({"status": -1,
                              "msg": u"有些字块不属于你的任务!"})
         rects = request.data['rects']
-        rectset = RectWriterSerializer(data=rects, many=True)
-        rectset.is_valid()
-        Rect.bulk_insert_or_replace(rectset.data)
-        task.done()
-        DeletionCheckItem.create_from_rect(rects, task)
+        task.rect_set = request.data['rects']
+        self.task_done(rects, task)
         return Response({"status": 0,
                             "task_id": pk })
 
@@ -129,7 +162,7 @@ class ClassifyTaskViewSet(RectBulkOpMixin,
         if not task:
             return Response({"status": -1,
                              "msg": "All tasks has been done!"})
-        return Response({
+        return Response({"status": 0,
                         "rects": task.rect_set,
                         "char_set": task.char_set,
                         "task_id": task.pk})
@@ -140,6 +173,7 @@ class PageTaskViewSet(RectBulkOpMixin,
                       viewsets.GenericViewSet):
     queryset = PageTask.objects.all()
     serializer_class = PageTaskSerializer
+
 
     @list_route(methods=['get'], url_path='obtain')
     def obtain(self, request):
@@ -154,7 +188,7 @@ class PageTaskViewSet(RectBulkOpMixin,
         _rects = Rect.objects.filter(page_code=page_id).all()
         rects = RectSerializer(data=_rects, many=True)
         rects.is_valid()
-        return Response({
+        return Response({"status": 0,
                         "rects": rects.data,
                         "page_id": page_id,
                         "task_id": task.pk})
@@ -181,17 +215,10 @@ class PageTaskViewSet(RectBulkOpMixin,
             return Response({"status": -1,
                              "msg": "No Permission!"})
         rects = request.data['rects']
-        rectset = RectWriterSerializer(data=rects, many=True)
-        rectset.is_valid()
-        Rect.bulk_insert_or_replace(rectset.data)
-        DeletionCheckItem.create_from_rect(rects, task)
-        task.done()
+        self.task_done(rects, task)
         return Response({"status": 0,
                             "task_id": pk })
 
-        return Response({ "status": -1,
-                "msg": rects.errors
-            })
 
 
 class DelTaskViewSet(RectBulkOpMixin,
@@ -205,23 +232,22 @@ class DelTaskViewSet(RectBulkOpMixin,
     def tobe_done(self, request, pk):
         task = DelTask.objects.get(pk=pk)
         can_write_fields = getattr(DeletionCheckItemSerializer.Meta, 'can_write_fields', [])
-
-        if (task.owner == request.user):
+        if (task.owner != request.user):
             return Response({"status": -1,
                              "msg": "No Permission!"})
-        _items = [dict((k,v) for (k,v) in filter(lambda x:x[0] in can_write_fields,
-                rect_del.items())) for rect_del in items]
-        items = DeletionCheckItemSerializer(data=_items, many=True)
-        if items.is_valid():
-            items.save()
-            task.done()
-            task.execute(request.user)
-            return Response({"status": 0,
-                             "task_id": pk })
+        rects = request.data['rects']
+        
+        _items = [dict((k,v) for (k,v) in filter(lambda x: x[0] in can_write_fields, rect_del.items())) for rect_del in rects]
 
-        return Response({ "status": -1,
-                "msg": rects.errors
-            })
+        del_items = [DeletionCheckItem(**_rect) for _rect in _items]
+        for it in del_items:
+            it.verifier = task.owner
+        DeletionCheckItem.objects.bulk_update(del_items, update_fields=['result', 'verifier']) 
+       
+        task.done()
+        task.execute()
+        return Response({"status": 0,
+                         "task_id": pk })
 
 
     @detail_route(methods=['post'], url_path='abandon')
@@ -240,9 +266,12 @@ class DelTaskViewSet(RectBulkOpMixin,
     def obtain(self, request):
         staff = request.user
         task = retrieve_deltask(staff)
+        
+        items = DeletionCheckItemSerializer(data=task.del_task_items, many=True)
+        items.is_valid()
         if not task:
             return Response({"status": -1,
                              "msg": "All tasks has been done!"})
         return Response({"status": 0,
-                        "rects": task.rect_set,
+                        "rects": items.data,
                         "task_id": task.pk})
