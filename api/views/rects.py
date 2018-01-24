@@ -80,20 +80,44 @@ class RectViewSet(viewsets.ModelViewSet, mixins.ListModelMixin):
                              "msg": "The schedule does not select reels!"})
         rects = Rect.objects.filter(reel__in=reelRids, ch=char).order_by("-wcc")
 
-        if wcc:
-            # 如果设置了wcc的值, 会自动设置到wcc附近的页码
-            # 计算大于wcc的字数
-            count = rects.filter(wcc__gte=wcc).count()
-            page_size = self.paginator.get_page_size(request)
-            page = math.ceil(count/page_size)
-            # request.query_params[self.paginator.page_query_param] = page
-
         page = self.paginate_queryset(rects)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(rects, many=True)
         return Response(serializer.data)
+
+    @list_route(methods=['get'], url_path='cp_wcc_count')
+    def cp_wcc_count(self, request):
+        ccpid = self.request.query_params.get('ccpid', None)
+        wcc = self.request.query_params.get('wcc', None)
+        if not wcc:
+            return Response({"status": -1,
+                             "msg": "pls provide param wcc."})
+
+        ccp = CharClassifyPlan.objects.get(id=ccpid)
+        char = ccp.ch
+        schedule_id = ccp.schedule_id
+
+        try:
+            schedule = Schedule.objects.get(pk=schedule_id)
+        except Schedule.DoesNotExist:
+            return Response({"status": -1,
+                             "msg": "not found schedule instance!"})
+
+        reelRids = [reel.rid for reel in schedule.reels.all()]
+        if len(reelRids) <= 0:
+            return Response({"status": -1,
+                             "msg": "The schedule does not select reels!"})
+        count = Rect.objects.filter(reel__in=reelRids, ch=char, wcc__gte=wcc).order_by("-wcc").count()
+
+        #page_size = self.paginator.get_page_size(request)
+        #actual_page = math.ceil(count / page_size)
+        return Response({'status': 0,
+                         'msg': 'success',
+                         'data': {
+                             'count': count
+                         }})
 
 
 class ScheduleViewSet(viewsets.ReadOnlyModelViewSet):

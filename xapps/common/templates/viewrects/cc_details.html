@@ -85,7 +85,7 @@ var app = new Vue({
     data: {
         schedule_id: schedule_id,
         rects: [],
-        cc: 0.9,
+        cc: 0.99,
         inputCC: this.cc,
         page: 0,
         inputPage: this.page,
@@ -109,7 +109,7 @@ var app = new Vue({
                that.changeCC(that.inputCC);
             }, 1200);
         });
-        $('#cc_slider').slider('setValue', inputCC * 100);
+        $('#cc_slider').slider('setValue', this.inputCC * 100);
     },
     methods:{
         changeCC: function (inputCC) {

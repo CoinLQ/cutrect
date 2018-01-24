@@ -92,7 +92,7 @@ var app = new Vue({
         schedule_id: schedule_id,
         char: char,
         rects: [],
-        cc: 0.65,
+        cc: 0.99,
         inputCC: this.cc,
         page: 0,
         inputPage: this.page,
@@ -116,14 +116,33 @@ var app = new Vue({
                that.changeCC(that.inputCC);
             }, 1200);
         });
-        $('#cc_slider').slider('setValue', inputCC * 100);
+        $('#cc_slider').slider('setValue', this.inputCC * 100);
     },
     methods:{
         changeCC: function (inputCC) {
             if(inputCC != this.cc){
-                this.page = 0;
+                var that = this;
+                that.page = 0;
                 $('#cc_slider').slider('setValue', inputCC * 100);
-                this.innerLoadRect(1, inputCC, this.page_size);
+                axios.get("/api/rect/cp_wcc_count/", {
+                    params: {
+                        'ccpid': that.ccpid,
+                        'wcc': inputCC,
+                    }
+                }).then(function(response){
+                    if(response.status == 200){
+                        var ret = response.data;
+                        if(ret && ret.status == 0 && ret.data.count){
+                            var actual_page = Math.ceil(ret.data.count / that.page_size);
+                            actual_page = Math.max(1, actual_page);
+                            //加载wcc所在的页
+                            console.log("gte wcc("+inputCC+") has "+ret.data.count+" char, page="+actual_page);
+                            that.loadRect(actual_page);
+                        }
+                    }
+                }).catch(function (error) {
+                    console.log(error);
+                })
             }
         },
         setPageSize: function (size) {
@@ -145,17 +164,14 @@ var app = new Vue({
             axios.get("/api/rect/cpreview/", {
                 params: {
                     'ccpid': this.ccpid,
-                    'wcc': cc,
+                    //'wcc': cc,
                     'page': pagenum,
                     'page_size': page_size
                 }
             }).then(function(response){
-                //console.log(response);
                 if(response.status == 200){
                     var ddd = response.data;
                     if(ddd){
-                        //that.schedule_id = ddd.schedule_id;
-                        //that.cc = ddd.cc;
                         if(cc != that.cc) that.cc = cc;
                         that.page = ddd.pagination.page;
                         that.inputPage = that.page;
