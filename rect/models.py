@@ -406,7 +406,6 @@ class Rect(models.Model):
     cid = models.CharField(verbose_name=u'经字号', max_length=28, db_index=True)
     reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects')
     page_code = models.CharField(max_length=23, blank=False, verbose_name=u'关联源页CODE', db_index = True)
-    column_code = models.CharField(max_length=25, null=True, verbose_name=u'关联源页切列图CODE') # auto_trigger
     column_set = JSONField(default=list, verbose_name=u'切字块所在切列JSON数据集')
     char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
     line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 对应图片的一列
@@ -481,7 +480,6 @@ class Rect(models.Model):
                 setattr(rect, key, _dict[key])
         rect.updated_at = localtime(now())
         rect.cid = rect.rect_sn
-        rect.column_code = rect.cid[:20]
         rect = Rect.normalize(rect)
         return rect
 
