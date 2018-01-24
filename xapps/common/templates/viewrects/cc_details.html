@@ -1,7 +1,7 @@
 {% extends "common/base.html" %}
 
 {% block extrastyle %}
-<title>聚类预览列表</title>
+<title>置信度预览列表</title>
 <link rel="stylesheet" href="/static/characters/css/app.css">
 <link rel="stylesheet" href="/static/css/bootstrap-slider.css">
 <style>
@@ -17,11 +17,8 @@
     <div class='row'>
         <!--end col-md-3 -->
         <div class='col-md-12 col-xs-12' style="margin-top:20px;">
-            <strong id='checkchar' style='font-size:36px; margin:0px;padding:8px;color:#483D8B;'>[[char]]</strong>
-            <a class="btn btn-default" href="javascript:;" @click="checkDict" style="margin-top:-12px;padding:8px 12px;"><span class="tooltip_text">查字典</span><span class="fa fa-book"></span></a>
-            <div style="clear:both;"> </div>
             <div class='row'>
-                <label>设置文字置信度:
+                <label>设置置信度:
                     {% comment %}<input id="ex1" data-slider-id='ex1Slider' type="text" data-slider-min="0" data-slider-max="100" data-slider-step="1" data-slider-value="96"/>{% endcomment %}
                     <input class="accuracy_input form-control-inline" v-model="inputCC" @keyup.enter="changeCC(inputCC)" style="margin-top:2px;" />
                     0&nbsp;<input  id="cc_slider" data-slider-id="ex1Slider" type="text"
@@ -81,16 +78,12 @@
 <script src="/static/viewrects/js/rectItem.js"></script>
 <script type="text/javascript">
 
-var ccpid = '{{ ccpid|escapejs }}';
 var schedule_id = '{{ schedule_id|escapejs }}';
-var char = '{{ char|escapejs }}';
 var app = new Vue({
     el: '#app',
     delimiters: ['[[', ']]'],
     data: {
-        ccpid: ccpid,
         schedule_id: schedule_id,
-        char: char,
         rects: [],
         cc: 0.99,
         inputCC: this.cc,
@@ -121,28 +114,9 @@ var app = new Vue({
     methods:{
         changeCC: function (inputCC) {
             if(inputCC != this.cc){
-                var that = this;
-                that.page = 0;
+                this.page = 0;
                 $('#cc_slider').slider('setValue', inputCC * 100);
-                axios.get("/api/rect/cp_wcc_count/", {
-                    params: {
-                        'ccpid': that.ccpid,
-                        'wcc': inputCC,
-                    }
-                }).then(function(response){
-                    if(response.status == 200){
-                        var ret = response.data;
-                        if(ret && ret.status == 0 && ret.data.count){
-                            var actual_page = Math.ceil(ret.data.count / that.page_size);
-                            actual_page = Math.max(1, actual_page);
-                            //加载wcc所在的页
-                            console.log("gte wcc("+inputCC+") has "+ret.data.count+" char, page="+actual_page);
-                            that.loadRect(actual_page);
-                        }
-                    }
-                }).catch(function (error) {
-                    console.log(error);
-                })
+                this.innerLoadRect(1, inputCC, this.page_size);
             }
         },
         setPageSize: function (size) {
@@ -161,17 +135,20 @@ var app = new Vue({
                 return ;
             }
             var that = this;
-            axios.get("/api/rect/cpreview/", {
+            axios.get("/api/rect/ccreview/", {
                 params: {
-                    'ccpid': this.ccpid,
-                    //'wcc': cc,
+                    'schedule_id': this.schedule_id,
+                    'cc': cc,
                     'page': pagenum,
                     'page_size': page_size
                 }
             }).then(function(response){
+                //console.log(response);
                 if(response.status == 200){
                     var ddd = response.data;
                     if(ddd){
+                        //that.schedule_id = ddd.schedule_id;
+                        //that.cc = ddd.cc;
                         if(cc != that.cc) that.cc = cc;
                         that.page = ddd.pagination.page;
                         that.inputPage = that.page;
@@ -184,14 +161,7 @@ var app = new Vue({
             }).catch(function (error) {
                 console.log(error);
             })
-        },
-        checkDict: function() {
-            url = "http://hanzi.lqdzj.cn/variant_detail?q="
-            url += this.char;
-            var _open = window.open(url);
-            if (_open == null || typeof(_open) == 'undefined')
-                console.log("Turn off your pop-up blocker!");
-        },
+        }
     }
 });
 

@@ -168,8 +168,10 @@ DATABASES = {
 # ]
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated', ),
-    'PAGE_SIZE': 10,
+    #'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated', ),
+
+    "DEFAULT_PAGINATION_CLASS": "api.pagination.StandardPagination",
+    'PAGE_SIZE': 20,
     'DEFAULT_AUTHENTICATION_CLASSES': (
     'jwt_auth.authentication.JWTAuthentication',
     'rest_framework.authentication.SessionAuthentication',
@@ -298,7 +300,7 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 
 STATICFILES_DIRS = [
     os.path.join(PROJECT_ROOT, 'xapps/common/static'),
-    os.path.join(PROJECT_ROOT, 'xcms/static/xcms'),
+    #os.path.join(PROJECT_ROOT, 'xcms/static/xcms'),
 ]
 
 # List of finder classes that know how to find static files in
