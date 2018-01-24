@@ -49,28 +49,57 @@ class ReelSerializer(serializers.HyperlinkedModelSerializer):
         fields = '__all__'
 
 
+class TaskSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+    priority = serializers.SerializerMethodField()
+    schedule_no = serializers.SerializerMethodField()     
+    number = serializers.SerializerMethodField()
+
+    def get_status(self,obj):
+        return obj.get_status_display()
+
+    def get_priority(self,obj):
+        return obj.get_priority_display()
+
+    def get_schedule_no(self,obj):
+        return obj.number.split('_')[0]
+
+    def get_number(self,obj):
+        no = obj.number.split('_')[1]
+        return no[:-5]
+
+
+
+
+class CCTaskSerializer(TaskSerializer):
+
+
+    class Meta:
+        model = CCTask
+        fields =  ("schedule_no","number", "desc", "status", "priority", "update_date", "count")
+
+
+class ClassifyTaskSerializer(TaskSerializer):
+    class Meta:
+        model = ClassifyTask
+        fields = ("schedule_no","number", "desc", "status", "priority", "update_date", "count")
+
+
+
+class PageTaskSerializer(TaskSerializer):
+    class Meta:
+        model = PageTask
+        fields = ("schedule_no","number", "desc", "status", "priority", "update_date", "count")
+
+class DelTaskSerializer(TaskSerializer):
+    class Meta:
+        model = DelTask
+        fields = ("schedule_no","number", "desc", "status", "priority", "update_date", "count")
+
+
 class ScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Schedule
-        fields = '__all__'
-
-
-class CCTaskSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CCTask
-        fields = '__all__'
-
-
-class ClassifyTaskSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ClassifyTask
-        fields = '__all__'
-
-
-
-class PageTaskSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PageTask
         fields = '__all__'
 
 
@@ -84,10 +113,7 @@ class PageSerializer(serializers.ModelSerializer):
         model = Page
         fields = '__all__'
 
-class DelTaskSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DelTask
-        fields = '__all__'
+
 
 
 # class PatchSerializer(serializers.ModelSerializer):

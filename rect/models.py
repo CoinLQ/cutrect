@@ -406,7 +406,6 @@ class Rect(models.Model):
     cid = models.CharField(verbose_name=u'经字号', max_length=28, db_index=True)
     reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects')
     page_code = models.CharField(max_length=23, blank=False, verbose_name=u'关联源页CODE', db_index = True)
-    column_code = models.CharField(max_length=25, null=True, verbose_name=u'关联源页切列图CODE') # auto_trigger
     column_set = JSONField(default=list, verbose_name=u'切字块所在切列JSON数据集')
     char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
     line_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'行号', default=0)  # 对应图片的一列
@@ -481,7 +480,6 @@ class Rect(models.Model):
                 setattr(rect, key, _dict[key])
         rect.updated_at = localtime(now())
         rect.cid = rect.rect_sn
-        rect.column_code = rect.cid[:20]
         rect = Rect.normalize(rect)
         return rect
 
@@ -628,9 +626,10 @@ def activity_log(func):
     def tmp(*args, **kwargs):
         result = func(*args, **kwargs)
         self = args[0]
-        ActivityLog.objects.create(user=self.owner, object_pk=self.pk,
-                                    object_type=type(self).__name__,
-                                    action=func.__name__)
+        # 暂无任务跟踪记录需求
+        # ActivityLog(user=self.owner, object_pk=self.pk,
+        #                                 object_type=type(self).__name__,
+        #                                 action=func.__name__).save()
         return result
     return tmp
 
@@ -738,8 +737,8 @@ class Task(models.Model):
 
     @activity_log
     def done(self):
-        self.status = TaskStatus.COMPLETED
         self.tasks_increment()
+        self.status = TaskStatus.COMPLETED
         return self.save(update_fields=["status"])
 
     @activity_log
@@ -827,9 +826,8 @@ class DelTask(Task):
         verbose_name = u"删框任务"
         verbose_name_plural = u"删框任务管理"
 
-    def execute(self, user):
-        self.del_task_items.update(verifier=user)
-        for item in self.del_task_items:
+    def execute(self):
+        for item in self.del_task_items.all():
             if item.result == ReviewResult.AGREE:
                 item.confirm()
             else:
@@ -849,6 +847,8 @@ class ReviewTask(Task):
 
 
 class DeletionCheckItem(models.Model):
+    objects = BulkUpdateManager()
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     op = models.PositiveSmallIntegerField(verbose_name=u'操作类型', default=OpStatus.DELETED)
     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)

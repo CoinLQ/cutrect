@@ -1,9 +1,5 @@
 from .settings import *
 
-# mysql 数据库
-import pymysql
-
-pymysql.install_as_MySQLdb()
 # DEBUG=False 不会用自带的 server 去 server js/css 等静态文件
 # 需要用 nginx 之类的去做静态文件的 server.
 DEBUG = True
@@ -29,6 +25,14 @@ CORS_ORIGIN_ALLOW_ALL = True
 #MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 
 # 请按照你开发时本机的数据库名字，密码，端口填写
+
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'polling_interval': 3,
+    'region': 'cn-north-1',
+    'visibility_timeout': 3600,
+    'queue_name_prefix': 'lq-dev-'
+}
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
