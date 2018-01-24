@@ -25,7 +25,7 @@ Vue.component('rectitem', {
     methods: {
         loadImage: function (rect) {
             if(rect){
-                var columnSet = eval("(" + rect.column_set+")");
+                var columnSet = rect.column_set;
                 if(!this.image){
                     this.image = new Image();
                     this.image.crossOrigin = "*";
