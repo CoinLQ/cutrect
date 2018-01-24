@@ -20,9 +20,14 @@ class PageRectViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PageRectSerializer
 
 
-class RectViewSet(viewsets.ModelViewSet):
+class RectViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Rect.objects.all()
     serializer_class = RectSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = get_object_or_404(Rect, cid=kwargs['pk'])
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
     @detail_route(methods=['get'], url_path='col_rects')
     def col_rects(self, request, pk):
