@@ -52,7 +52,7 @@ class GlobalSetting(object):
 
 @xadmin.sites.register(Schedule)
 class ScheduleAdmin(object):
-    browser_details = {'name': {'title':u'置信字块详情页', 'load_url':'detail2'}}
+    browser_details = {'name': {'title':u'置信度阀值预览', 'load_url':'detail2'}}
 
     def remain_task_count(self, instance):
         count = CCTask.objects.filter(schedule=instance.id, status__in=TaskStatus.remain_status).count()

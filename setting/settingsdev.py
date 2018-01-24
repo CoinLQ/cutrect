@@ -36,10 +36,10 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'cutrect_dev',
+        'NAME': 'cutrect_local',
         'USER': 'lqzj',
         'PASSWORD': 'lqdzjsql',
-        'HOST': '127.0.0.1',
+        'HOST': 'www.dzj3000.com',
         'PORT': '5432',
 
     },

@@ -1,60 +1,53 @@
-from django.shortcuts import render
-
 # Create your views here.
-from django.views.generic.base import View
-from django.http import HttpResponse, HttpResponsePermanentRedirect
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework import generics, mixins, viewsets, views
-from rest_framework.renderers import JSONRenderer
-
-import json
-
+from django.http import HttpResponse
+from rest_framework.pagination import PageNumberPagination
+from rest_framework import viewsets, views
 
 from rect.serializers import *
-from rect.forms import ScheduleForm, BatchModelForm
+from rect.forms import ScheduleForm
 from utils.mixin_utils import LoginRequiredMixin
 
 
 
 #class CreateScheduleView(LoginRequiredMixin, View):
-class CreateScheduleView(View):
-
-    @csrf_exempt
-    def post(self, request):
-        scheduleForm = ScheduleForm(request.POST)
-
-        if scheduleForm.is_valid():
-            # 创建计划信息.
-            schedule = scheduleForm.save()
-            ss = ScheduleSerializer(schedule)
-            data = JSONRenderer().render(ss.data)
-
-            res = {'code': 0, 'msg': 'success'}
-            # todo 1223 异步去分配任务.
-        else:
-            res = {'code': -1, 'msg': '请求数据错误', 'data': scheduleForm.errors}
-        return HttpResponse(json.dumps(res), content_type='application/json')
-
-# class CreateScheduleView(LoginRequiredMixin, View):
-class UploadBatchView(View):
-
-    @csrf_exempt
-    def post(self, request):
-        batchModelForm = BatchModelForm(request.POST)
-
-        if batchModelForm.is_valid():
-            # 创建计划信息.
-            batch = batchModelForm.save()
-            bs = BatchSerializer(batch)
-            data = JSONRenderer().render(bs.data)
-
-            res = {'code': 0, 'msg': 'success'}
-            # todo 1223 异步去分配任务.
-        else:
-            res = {'code': -1, 'msg': '请求数据错误', 'data': batchModelForm.errors}
-        return HttpResponse(json.dumps(res), content_type='application/json')
-
-
+# class CreateScheduleView(View):
+#
+#     @csrf_exempt
+#     def post(self, request):
+#         scheduleForm = ScheduleForm(request.POST)
+#
+#         if scheduleForm.is_valid():
+#             # 创建计划信息.
+#             schedule = scheduleForm.save()
+#             ss = ScheduleSerializer(schedule)
+#             data = JSONRenderer().render(ss.data)
+#
+#             res = {'code': 0, 'msg': 'success'}
+#             # todo 1223 异步去分配任务.
+#         else:
+#             res = {'code': -1, 'msg': '请求数据错误', 'data': scheduleForm.errors}
+#         return HttpResponse(json.dumps(res), content_type='application/json')
+#
+# # class CreateScheduleView(LoginRequiredMixin, View):
+# class UploadBatchView(View):
+#
+#     @csrf_exempt
+#     def post(self, request):
+#         batchModelForm = BatchModelForm(request.POST)
+#
+#         if batchModelForm.is_valid():
+#             # 创建计划信息.
+#             batch = batchModelForm.save()
+#             bs = BatchSerializer(batch)
+#             data = JSONRenderer().render(bs.data)
+#
+#             res = {'code': 0, 'msg': 'success'}
+#             # todo 1223 异步去分配任务.
+#         else:
+#             res = {'code': -1, 'msg': '请求数据错误', 'data': batchModelForm.errors}
+#         return HttpResponse(json.dumps(res), content_type='application/json')
+#
+#
 
                 # class PatchViewSet(viewsets.ModelViewSet):
 #     queryset = Patch.objects.all()
