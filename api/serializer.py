@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from rect.models import Rect, PageRect, DeletionCheckItem
 
-
 class RectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rect
@@ -23,7 +22,26 @@ class PageRectSerializer(serializers.ModelSerializer):
 
 
 class DeletionCheckItemSerializer(serializers.ModelSerializer):
+    cid = serializers.SerializerMethodField()
+    modifier = serializers.SerializerMethodField()
+    verifier = serializers.SerializerMethodField()
+
+    def get_cid(self, obj):
+        try:
+            rect = Rect.objects.get(pk=obj.rect_id)
+            return rect.cid
+        except:
+            return ''
+
+    def get_modifier(self, obj):
+        return obj.modifier.email
+
+    def get_verifier(self, obj):
+        return obj.verifier and obj.verifier.email
+
     class Meta:
         model = DeletionCheckItem
         can_write_fields = ['id', 'result']
-        fields = '__all__'
+        fields = ("id", "op", "x", "y", "w", "h", "ocolumn_uri", "ocolumn_x", "ocolumn_y", "ch", "rect_id", 'cid', "result", "created_at", "updated_at", "modifier", "verifier", "del_task")
+
+

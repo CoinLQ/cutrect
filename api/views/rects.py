@@ -31,7 +31,7 @@ class RectResultsSetPagination(StandardPagination):
     page_size_query_param = 'page_size'
     max_page_size = 100
 
-class RectViewSet(viewsets.ModelViewSet, mixins.ListModelMixin):
+class RectViewSet(viewsets.ReadOnlyModelViewSet, mixins.ListModelMixin):
     queryset = Rect.objects.all()
     serializer_class = RectSerializer
     pagination_class = RectResultsSetPagination
@@ -120,6 +120,11 @@ class RectViewSet(viewsets.ModelViewSet, mixins.ListModelMixin):
                          'data': {
                              'count': count
                          }})
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = get_object_or_404(Rect, cid=kwargs['pk'])
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
     @detail_route(methods=['get'], url_path='col_rects')
     def col_rects(self, request, pk):

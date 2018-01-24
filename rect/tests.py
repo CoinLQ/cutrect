@@ -202,3 +202,7 @@ class BaseModelTest(TestCase):
         print(Rect.objects.values_list('cid', flat=True))
         print(Rect.objects.first().__dict__)
         self.assertEquals(Rect.objects.count(), count)
+
+    def test_make_pagerect_demo(self):
+        Page.objects.filter(pid='GZ000790v012p00200')
+    

@@ -19,6 +19,9 @@ from django.db.models import Sum, Case, When, Value, Count, Avg, F
 from django_bulk_update.manager import BulkUpdateManager
 from .lib.arrange_rect import ArrangeRect
 from dotmap import DotMap
+from PIL import Image, ImageFont, ImageDraw
+from io import BytesIO
+import os, sys
 
 def iterable(cls):
     """
@@ -254,8 +257,14 @@ class Page(models.Model):
                                               choices=PageStatus.CHOICES, default=PageStatus.INITIAL)
     json = JSONField(default=dict)
     updated_at = models.DateTimeField(verbose_name='更新时间', auto_now=True)
-    # s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u'S3图片路径地址', upload_to='lqcharacters-images',
-    #                             storage='storages.backends.s3boto.S3BotoStorage')
+
+
+    def _remote_image_stream(self):
+        opener = urllib.request.build_opener()
+        # AWS S3 Private Resource snippet, someday here should to be.
+        # opener.addheaders = [('Authorization', 'AWS AKIAIOSFODNN7EXAMPLE:02236Q3V0RonhpaBX5sCYVf1bNRuU=')]
+        reader = opener.open(self.get_real_path())
+        return Image.open(BytesIO(reader.read()))
 
     def get_real_path(self):
         # FIXME: 暂时这么写可以，写死了，GEO CDN就失效了。
@@ -328,7 +337,7 @@ class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     page = models.ForeignKey(Page, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
                              verbose_name=u'关联源页信息')
-    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='pagerects')
+    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='reels')
     op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
     line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数') # 最大文本行号
     column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数') # 最大文本长度
@@ -394,6 +403,39 @@ class PageRect(models.Model):
         pagerect.column_count = max(map(lambda Y: Y['char_no'], rect_list))
         pagerect.save()
         return ret
+
+
+
+
+
+    def make_annotate(self):
+        source_img = self.page._remote_image_stream().convert("RGBA")
+        work_dir = "/tmp/annotations"
+        try:
+            os.stat(work_dir)
+        except:
+            os.makedirs(work_dir)
+        out_file = "%s/%s.jpg" % (work_dir, self.page_id)
+        # make a blank image for the rectangle, initialized to a completely transparent color
+        tmp = Image.new('RGBA', source_img.size, (0, 0, 0, 0))
+        # get a drawing context for it
+        draw = ImageDraw.Draw(tmp)
+        if sys.platform in ('linux2', 'linux'):
+            myfont = ImageFont.truetype(settings.BASE_DIR + "/static/fonts/SourceHanSerifTC-Bold.otf", 11)
+        elif sys.platform == 'darwin':
+            myfont = ImageFont.truetype("/Library/Fonts/Songti.ttc", 12)
+
+        columns, column_len = ArrangeRect.resort_rects_from_qs(self.rect_set)
+        for lin_n, line in columns.items():
+            for col_n, _r in enumerate(line, start=1):
+                rect = DotMap(_r)
+                # draw a semi-transparent rect on the temporary image
+                draw.rectangle(((rect.x, rect.y), (rect.x + int(rect.w), rect.y + int(rect.h))),
+                                 fill=(0, 0, 0, 120))
+                anno_str = u"%s-%s" % (lin_n, col_n)
+                draw.text((rect.x, rect.y), anno_str, font=myfont, fill=(200, 255, 255))
+        source_img = Image.alpha_composite(source_img, tmp)
+        source_img.save(out_file, "JPEG")
 
 
 @iterable

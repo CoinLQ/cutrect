@@ -266,8 +266,9 @@ class DelTaskViewSet(RectBulkOpMixin,
     def obtain(self, request):
         staff = request.user
         task = retrieve_deltask(staff)
+        queryset = task.del_task_items.prefetch_related('modifier', 'verifier') 
         
-        items = DeletionCheckItemSerializer(data=task.del_task_items, many=True)
+        items = DeletionCheckItemSerializer(data=queryset, many=True)
         items.is_valid()
         if not task:
             return Response({"status": -1,
