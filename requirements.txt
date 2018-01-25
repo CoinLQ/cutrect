@@ -7,7 +7,6 @@ future==0.16.0
 httplib2==0.9.2
 pytz==2017.2
 six==1.10.0
-#xadmin==0.6.1
 django-import-export==0.5.1
 unipath==1.1
 django-rest-swagger==2.1.0
@@ -15,26 +14,22 @@ pillow==3.4.2
 django-extensions==1.8.1
 django-filter==1.0.4
 boto3==1.4.7
-oss2==2.3.3
-#django_sendmail_backend==0.1.2
-django-registration==2.2
 flake8==3.4.1
 #pip install https://github.com/CoinLQ/xadmin/archive/master.zip
-#pip install https://github.com/CoinLQ/django-fagungis/archive/master.zip
 #pip install https://github.com/CoinLQ/db_file_storage/archive/master.zip
-#Fabric3==1.13.1.post1
+Fabric3==1.13.1.post1
 django-storages==1.6.5
-#django-db-file-storage==0.4.2
 dotmap==1.2.20
 numpy==1.13.1
 django-redis==4.6
 codecov==2.0.9
 
 django-cors-headers==2.1.0
-django-template-debug
 django-material
 celery==4.1.0
-django-celery-beat==1.1.0
+#django-celery-beat==1.1.0
+-e git+https://github.com/celery/django-celery-beat#egg=django-celery-beat
+-e git+https://github.com/CoinLQ/xadmin#egg=xadmin
 django-celery-results==1.0.1
 SQLAlchemy==1.1.15
 jwt_auth==0.2.9
