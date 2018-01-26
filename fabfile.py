@@ -4,7 +4,7 @@ from os.path import join
 from fabric.api import env, task
 from utils.fabric.tasks import *
 from utils.fabric.init_machine import initMachine
-from utils.fabric.setup_project import setup_project
+from utils.fabric.setup_project import setup_project, public_webpage
 
 @task
 def cutrect():
@@ -14,7 +14,7 @@ def cutrect():
     env.target_ips = ['192.168.2.227']
     #  git repository of your project
     env.repository = 'https://github.com/CoinLQ/cutrect.git'
-    env.default_branch = 'master'
+    env.default_branch = 'deploy'
     #  hosts to deploy your project, users must be sudoers
     env.hosts = [ "%s@%s" %(env.login_user, ip) for ip in env.target_ips]
     # additional packages to be installed on the server
@@ -71,8 +71,9 @@ def cutrect():
     #   END gunicorn settings ###
 
     #   START nginx settings ###
-    env.nginx_server_name = 'lqdzj.cn'  # Only domain name, without 'www' or 'http://'
+    env.nginx_server_name = 'ccapi.lqdzj.cn'  # Only domain name, without 'www' or 'http://'
     env.nginx_conf_file = '%(django_user_home)s/configs/nginx/%(project)s.conf' % env
+    env.nginx_webpage_conf_file = '%(django_user_home)s/configs/nginx/nginx_webpage.conf' % env
     env.nginx_client_max_body_size = 10  # Maximum accepted body size of client request, in MB
     env.nginx_htdocs = '%(django_user_home)s/htdocs' % env
     # will configure nginx with ssl on, your certificate must be installed

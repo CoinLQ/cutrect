@@ -5,10 +5,7 @@ from datetime import date
 import os
 import base64
 from rect.models import Schedule, SliceType
-from .utils import parseBatch
 import hashlib
-from setting.settings import MEDIA_ROOT
-from django.core.files.storage import default_storage
 
 
 class ScheduleForm(forms.ModelForm):

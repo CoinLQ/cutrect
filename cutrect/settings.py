@@ -101,7 +101,7 @@ MIDDLEWARE = [
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'setting.urls'
+ROOT_URLCONF = 'cutrect.urls'
 
 TEMPLATES = [
     {
@@ -127,7 +127,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'setting.wsgi.application'
+WSGI_APPLICATION = 'cutrect.wsgi.application'
 
 
 # Database
@@ -337,7 +337,7 @@ CACHES = {
 #http://www.jianshu.com/p/d8cbd4c72758
 
 
-DATABASE_ROUTERS = ['setting.db_router.DBRouter']
+DATABASE_ROUTERS = ['cutrect.db_router.DBRouter']
 
 # 定制celery任务，使用AWS的SQS服务
 CELERY_TIMEZONE = 'UTC'
@@ -370,5 +370,5 @@ CELERY_QUEUES = {
 CELERY_BROKER_CONNECTION_RETRY=False
 
 CELERY_IMPORTS = (
-        'setting.celery_tasks',
+        'cutrect.celery_tasks',
     )

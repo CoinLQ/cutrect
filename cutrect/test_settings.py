@@ -100,7 +100,7 @@ MIDDLEWARE = [
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'setting.urls'
+ROOT_URLCONF = 'cutrect.urls'
 
 TEMPLATES = [
     {
@@ -126,7 +126,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'setting.wsgi.application'
+WSGI_APPLICATION = 'cutrect.wsgi.application'
 
 
 # Database

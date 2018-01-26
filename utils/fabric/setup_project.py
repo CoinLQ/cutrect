@@ -23,6 +23,7 @@ def setup_project():
     _git_clone()
     _install_requirements()
     _upload_nginx_conf()
+    _upload_webpage_nginx_conf()
     _upload_rungunicorn_script()
     _upload_supervisord_conf()
     _prepare_media_path()
@@ -31,8 +32,14 @@ def setup_project():
     (green_bg(end_time.strftime('%H:%M:%S')), (end_time - start_time).seconds)
     puts(finish_message)
 
-
-
+@task
+def public_webpage():
+    _verify_sudo()
+    sudo('mkdir -p /opt/websites/z_pub')
+    sudo('wget -qO- https://github.com/CoinLQ/Z_PUB/archive/master.zip | bsdtar -xvf- -C /opt/websites/z_pub')
+    sudo('rm -rf /opt/websites/z_pub/current')
+    sudo('mv /opt/websites/z_pub/Z_PUB-master /opt/websites/z_pub/current')
+    sudo('nginx -s reload')
 
 def _install_requirements():
     ''' you must have a file called requirements.txt in your project root'''
@@ -94,6 +101,24 @@ def _upload_nginx_conf():
                     context=context, backup=False, use_sudo=True)
 
     sudo('ln -sf %s /etc/nginx/sites-enabled/%s' % (env.nginx_conf_file, basename(env.nginx_conf_file)))
+    _test_nginx_conf()
+    sudo('nginx -s reload')
+
+def _upload_webpage_nginx_conf():
+    ''' upload nginx conf '''
+    local_nginx_conf_file_name = 'nginx_webpage.conf'
+    local_nginx_conf_file_path = "%s/conf/%s" % (dirname(env.real_fabfile), local_nginx_conf_file_name)
+    if isfile(local_nginx_conf_file_path):
+        ''' we use user defined conf template '''
+        template = local_nginx_conf_file_path
+    else:
+        template = '%s/conf/%s' % (fabric_utils_path, local_nginx_conf_file_name)
+    context = copy(env)
+    # Template
+    upload_template(template, env.nginx_webpage_conf_file,
+                    context=context, backup=False, use_sudo=True)
+
+    sudo('ln -sf %s /etc/nginx/sites-enabled/%s' % (env.nginx_webpage_conf_file, basename(env.nginx_webpage_conf_file)))
     _test_nginx_conf()
     sudo('nginx -s reload')
 
