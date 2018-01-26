@@ -42,7 +42,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 # 生产环境不开启跨域False https://zhuanlan.zhihu.com/p/25080236
-CORS_ORIGIN_ALLOW_ALL = False #开发环境配置True
+CORS_ORIGIN_ALLOW_ALL = False # 开发环境配置True
 
 # 用CORS 解决vue.js django跨域调用 https://www.jianshu.com/p/1fd744512d83
 # 配置允许跨域访问的域名
@@ -51,9 +51,10 @@ CORS_ORIGIN_ALLOW_ALL = False #开发环境配置True
 CORS_ORIGIN_WHITELIST = (
 )
 # 或者定义允许的匹配路径正则表达式. CORS_ORIGIN_REGEX_WHITELIST = ('^(https?://)?(\w+.)?>google.com$', )
+CORS_ORIGIN_REGEX_WHITELIST = (r'^(https?://)?(\w+\.)?lqdzj\.cn$', )
 
 ADMINS = (
-    #('admin', 'kangqiao182@126.com'),
+    ('admin', '17074810135m0@sina.cn'),
 )
 MANAGERS = ADMINS
 
@@ -143,10 +144,10 @@ DATABASES = {
         'PORT': '5432',
 
     },
-    'sutra_db': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'sutra.sqlite3'),
-    }
+    # 'sutra_db': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': os.path.join(BASE_DIR, 'sutra.sqlite3'),
+    # }
 }
 
 # Password validation
@@ -168,8 +169,7 @@ DATABASES = {
 # ]
 
 REST_FRAMEWORK = {
-    #'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated', ),
-
+    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated', ),
     "DEFAULT_PAGINATION_CLASS": "api.pagination.StandardPagination",
     'PAGE_SIZE': 20,
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -221,17 +221,17 @@ LOGGING = {
             'class': 'django.utils.log.AdminEmailHandler'
         },
         'logfile': {
-                'level': 'DEBUG',
+                'level': 'INFO',
                 'class': 'logging.handlers.RotatingFileHandler',
                 'filename': os.path.join("/opt/django/logs/cutrect", "standard.log"),
                 'maxBytes': 50000,
                 'backupCount': 2,
                 'formatter': 'standard',
         },
-        # 'console': {
-        #     'level': 'DEBUG',
-        #     'class': 'logging.StreamHandler'
-        # },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler'
+        },
     },
     'loggers': {
         'django.request': {
@@ -385,3 +385,12 @@ CELERY_BROKER_CONNECTION_RETRY=False
 CELERY_IMPORTS = (
         'cutrect.celery_tasks',
     )
+
+## 系统邮箱设置
+EMAIL_HOST = 'smtp.sina.cn'
+EMAIL_PORT = 25
+EMAIL_HOST_USER = '17074810135m0@sina.cn'
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PW', '')
+EMAIL_USE_TLS = True
+EMAIL_FROM = EMAIL_HOST_USER
+SERVER_EMAIL = EMAIL_HOST_USER

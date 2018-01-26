@@ -16,6 +16,7 @@ export PYTHONPATH=`pwd`
 export DJANGO_SETTINGS_MODULE=%(project)s.settings
 export AWS_ACCESS_KEY=1
 export AWS_SECRET_KEY=2
+export EMAIL_PW=3
 # activate the virtualenv
 source %(virtenv)s/bin/activate
 # start gunicorn with all options earlier declared in fabfile.py
