@@ -32,9 +32,9 @@ def deploy():
     puts(green_bg('Start deploy...'))
     start_time = datetime.now()
 
-    git_pull()
-    _install_requirements()
-    _prepare_django_project()
+    # git_pull()
+    # _install_requirements()
+    # _prepare_django_project()
     _supervisor_restart()
 
     end_time = datetime.now()
@@ -63,6 +63,7 @@ def _prepare_django_project():
 def _supervisor_restart():
     with settings(hide('running', 'stdout', 'stderr', 'warnings'), warn_only=True):
         res = sudo('%(supervisorctl)s restart %(supervisor_program_name)s' % env)
+
     if 'ERROR' in res:
         print("%s NOT STARTED!" % env.supervisor_program_name)
     else:

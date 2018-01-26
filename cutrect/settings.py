@@ -208,16 +208,30 @@ LOGGING = {
             '()': 'django.utils.log.RequireDebugFalse'
         }
     },
+    'formatters': {
+        'standard': {
+            'format': "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            'datefmt': "%d/%b/%Y %H:%M:%S"
+        },
+    },
     'handlers': {
         'mail_admins': {
             'level': 'ERROR',
             'filters': ['require_debug_false'],
             'class': 'django.utils.log.AdminEmailHandler'
         },
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler'
+        'logfile': {
+                'level': 'DEBUG',
+                'class': 'logging.handlers.RotatingFileHandler',
+                'filename': os.path.join("/opt/django/logs/cutrect", "standard.log"),
+                'maxBytes': 50000,
+                'backupCount': 2,
+                'formatter': 'standard',
         },
+        # 'console': {
+        #     'level': 'DEBUG',
+        #     'class': 'logging.StreamHandler'
+        # },
     },
     'loggers': {
         'django.request': {
@@ -273,7 +287,7 @@ MEDIA_URL = '/media/'
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"
-MEDIA_ROOT = os.path.join(PROJECT_ROOT, 'media')
+MEDIA_ROOT = '/www/cutrect/media'
 
 # URL prefix for static files.
 # Example: "http://media.lawrence.com/static/"
@@ -288,7 +302,7 @@ STATIC_URL = '/static/'
 # 当运行 python manage.py collectstatic 的时候
 # STATIC_ROOT 文件夹 是用来将所有 STATICFILES_DIRS 中所有文件夹中的文件，以及各 app 中 static 中的文件都复制过来
 # 把这些文件放到一起是为了用 apache/nginx 等部署的时候更方便
-STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
+STATIC_ROOT = '/www/cutrect/static'
 
 # Additional locations of static files
 # STATICFILES_DIRS = (
@@ -300,7 +314,6 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 
 STATICFILES_DIRS = [
     os.path.join(PROJECT_ROOT, 'xapps/common/static'),
-    #os.path.join(PROJECT_ROOT, 'xcms/static/xcms'),
 ]
 
 # List of finder classes that know how to find static files in

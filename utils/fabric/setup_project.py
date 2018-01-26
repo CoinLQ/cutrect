@@ -18,15 +18,15 @@ def setup_project():
     puts(green_bg('Start setup...'))
     start_time = datetime.now()
     _verify_sudo()
-    _create_virtualenv()
-    _install_gunicorn()
-    _git_clone()
-    _install_requirements()
-    _upload_nginx_conf()
-    _upload_webpage_nginx_conf()
+    # _create_virtualenv()
+    # _install_gunicorn()
+    # _git_clone()
+    # _install_requirements()
+    # _upload_nginx_conf()
+    # _upload_webpage_nginx_conf()
     _upload_rungunicorn_script()
-    _upload_supervisord_conf()
-    _prepare_media_path()
+    # _upload_supervisord_conf()
+    _prepare_django_app_path()
     end_time = datetime.now()
     finish_message = '[%s] Correctly finished in %i seconds' % \
     (green_bg(end_time.strftime('%H:%M:%S')), (end_time - start_time).seconds)
@@ -52,8 +52,6 @@ def _install_gunicorn():
     """ force gunicorn installation into your virtualenv, even if it's installed globally.
     for more details: https://github.com/benoitc/gunicorn/pull/280 """
     virtenvsudo('pip install -I gunicorn')
-
-
 
 
 def _create_virtualenv():
@@ -142,7 +140,7 @@ def _upload_supervisord_conf():
     _reload_supervisorctl()
 
 
-def _prepare_media_path():
+def _prepare_django_app_path():
     for path in [env.django_media_path, env.django_static_path]:
         path = path.rstrip('/')
         sudo('mkdir -p %s' % path)
@@ -161,4 +159,6 @@ def _upload_rungunicorn_script():
     upload_template(template, env.rungunicorn_script,
                     context=context, backup=False, use_sudo=True)
     sudo('chmod +x %s' % env.rungunicorn_script)
+    sudo('mkdir -p /opt/django/logs/%s' % env.project)
+    sudo('chown django -R /opt/django/logs')
 

@@ -37,16 +37,16 @@ def cutrect():
     #  the Python path to a Django settings module.
     env.django_project_settings = 'settings'
     #  django media dir
-    env.django_media_path = '/www/lqhansp/media'
+    env.django_media_path = '/www/cutrect/media'
     #  django static dir
-    env.django_static_path = '/www/lqhansp/static'
+    env.django_static_path = '/www/cutrect/static'
     #  django media url and root dir
     env.django_media_url = '/media/'
-    env.django_media_root = '/www/lqhansp'
+    env.django_media_root = '/www/cutrect'
     #  django static url and root dir
     env.django_static_url = '/static/'
     # env.django_static_root = env.code_root
-    env.django_static_root = '/www/lqhansp'
+    env.django_static_root = '/www/cutrect'
     #  do you use south in your django project?
     env.south_used = True
     #  virtualenv root
