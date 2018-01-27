@@ -42,7 +42,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 # 生产环境不开启跨域False https://zhuanlan.zhihu.com/p/25080236
-CORS_ORIGIN_ALLOW_ALL = False #开发环境配置True
+CORS_ORIGIN_ALLOW_ALL = False # 开发环境配置True
 
 # 用CORS 解决vue.js django跨域调用 https://www.jianshu.com/p/1fd744512d83
 # 配置允许跨域访问的域名
@@ -51,9 +51,10 @@ CORS_ORIGIN_ALLOW_ALL = False #开发环境配置True
 CORS_ORIGIN_WHITELIST = (
 )
 # 或者定义允许的匹配路径正则表达式. CORS_ORIGIN_REGEX_WHITELIST = ('^(https?://)?(\w+.)?>google.com$', )
+CORS_ORIGIN_REGEX_WHITELIST = (r'^(https?://)?(\w+\.)?lqdzj\.cn$', )
 
 ADMINS = (
-    #('admin', 'kangqiao182@126.com'),
+    ('admin', '17074810135m0@sina.cn'),
 )
 MANAGERS = ADMINS
 
@@ -101,7 +102,7 @@ MIDDLEWARE = [
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'setting.urls'
+ROOT_URLCONF = 'cutrect.urls'
 
 TEMPLATES = [
     {
@@ -127,7 +128,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'setting.wsgi.application'
+WSGI_APPLICATION = 'cutrect.wsgi.application'
 
 
 # Database
@@ -136,17 +137,17 @@ WSGI_APPLICATION = 'setting.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'cutrect',
+        'NAME': 'cutrect_prod',
         'USER': 'lqzj',
         'PASSWORD': 'lqdzjsql',
         'HOST': '127.0.0.1',
         'PORT': '5432',
 
     },
-    'sutra_db': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'sutra.sqlite3'),
-    }
+    # 'sutra_db': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': os.path.join(BASE_DIR, 'sutra.sqlite3'),
+    # }
 }
 
 # Password validation
@@ -168,8 +169,7 @@ DATABASES = {
 # ]
 
 REST_FRAMEWORK = {
-    #'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated', ),
-
+    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated', ),
     "DEFAULT_PAGINATION_CLASS": "api.pagination.StandardPagination",
     'PAGE_SIZE': 20,
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -208,11 +208,25 @@ LOGGING = {
             '()': 'django.utils.log.RequireDebugFalse'
         }
     },
+    'formatters': {
+        'standard': {
+            'format': "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            'datefmt': "%d/%b/%Y %H:%M:%S"
+        },
+    },
     'handlers': {
         'mail_admins': {
             'level': 'ERROR',
             'filters': ['require_debug_false'],
             'class': 'django.utils.log.AdminEmailHandler'
+        },
+        'logfile': {
+                'level': 'INFO',
+                'class': 'logging.handlers.RotatingFileHandler',
+                'filename': os.path.join("/opt/django/logs/cutrect", "standard.log"),
+                'maxBytes': 50000,
+                'backupCount': 2,
+                'formatter': 'standard',
         },
         'console': {
             'level': 'DEBUG',
@@ -273,7 +287,7 @@ MEDIA_URL = '/media/'
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"
-MEDIA_ROOT = os.path.join(PROJECT_ROOT, 'media')
+MEDIA_ROOT = '/www/cutrect/media'
 
 # URL prefix for static files.
 # Example: "http://media.lawrence.com/static/"
@@ -288,7 +302,7 @@ STATIC_URL = '/static/'
 # 当运行 python manage.py collectstatic 的时候
 # STATIC_ROOT 文件夹 是用来将所有 STATICFILES_DIRS 中所有文件夹中的文件，以及各 app 中 static 中的文件都复制过来
 # 把这些文件放到一起是为了用 apache/nginx 等部署的时候更方便
-STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
+STATIC_ROOT = '/www/cutrect/static'
 
 # Additional locations of static files
 # STATICFILES_DIRS = (
@@ -300,7 +314,6 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 
 STATICFILES_DIRS = [
     os.path.join(PROJECT_ROOT, 'xapps/common/static'),
-    #os.path.join(PROJECT_ROOT, 'xcms/static/xcms'),
 ]
 
 # List of finder classes that know how to find static files in
@@ -337,7 +350,7 @@ CACHES = {
 #http://www.jianshu.com/p/d8cbd4c72758
 
 
-DATABASE_ROUTERS = ['setting.db_router.DBRouter']
+DATABASE_ROUTERS = ['cutrect.db_router.DBRouter']
 
 # 定制celery任务，使用AWS的SQS服务
 CELERY_TIMEZONE = 'UTC'
@@ -354,7 +367,7 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
     'queue_name_prefix': 'lq-prod-'
 }
 
-CELERY_WORKER_STATE_DB = '/var/run/celery/worker.db'
+# CELERY_WORKER_STATE_DB = '/var/run/celery/worker.db'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_WORKER_PREFETCH_MULTIPLIER = 0         # See https://github.com/celery/celery/issues/3712
 #CELERY_RESULT_BACKEND = 'sqla+sqlite:///results.sqlite'
@@ -370,5 +383,14 @@ CELERY_QUEUES = {
 CELERY_BROKER_CONNECTION_RETRY=False
 
 CELERY_IMPORTS = (
-        'setting.celery_tasks',
+        'cutrect.celery_tasks',
     )
+
+## 系统邮箱设置
+EMAIL_HOST = 'smtp.sina.cn'
+EMAIL_PORT = 25
+EMAIL_HOST_USER = '17074810135@sina.cn'
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PW', '')
+EMAIL_USE_TLS = True
+EMAIL_FROM = EMAIL_HOST_USER
+SERVER_EMAIL = EMAIL_HOST_USER

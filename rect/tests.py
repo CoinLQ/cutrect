@@ -1,7 +1,7 @@
 from django.test import TestCase
 from rect.models import ORGGroup, Schedule, Rect, CCTask, SliceType
 from rect.models import Tripitaka, Sutra, Reel, Page, Rect, PageRect
-from setting.settings import MEDIA_ROOT
+from cutrect.settings import MEDIA_ROOT
 
 from datetime import date
 from rect.utils import allocateTasks, parseBatch

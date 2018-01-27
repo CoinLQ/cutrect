@@ -1,4 +1,4 @@
-from setting import celery_app
+from cutrect import celery_app
 from celery import Celery
 from celery.schedules import crontab
 from django.conf import settings
@@ -13,8 +13,8 @@ def setup_periodic_tasks(sender, **kwargs):
         crontab(hour='1', minute='02', day_of_week="*"),
         every_morning.s(), name='good morning')
 
-    # Calls test('world') every 30 seconds
-    sender.add_periodic_task(10.0, test.s('abc'), expires=10)
+    # Calls test('world') every 300 seconds
+    sender.add_periodic_task(300.0, test.s('hello world.'), expires=10)
 
 
 @celery_app.task(bind=True)

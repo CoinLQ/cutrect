@@ -8,7 +8,7 @@ import zipfile
 import json
 from django.db import transaction
 from django.db.utils import DataError
-from setting.settings import MEDIA_ROOT
+from cutrect.settings import MEDIA_ROOT
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 

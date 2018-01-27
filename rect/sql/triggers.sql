@@ -87,6 +87,7 @@ CREATE TRIGGER fn_gen_pid
 
 
 CREATE or REPLACE FUNCTION fn_gen_cid() RETURNS trigger AS $fn_gen_cid$
+BEGIN
 NEW.cid := NEW.page_code|| to_char(NEW.line_no, 'FM00')|| 'n' || to_char(NEW.char_no, 'FM00');
 RETURN NEW;
 END;

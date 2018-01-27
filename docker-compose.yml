@@ -39,7 +39,7 @@ web_tripitaka:
     - ./../Z:/cutrect/frontend
   links:
     - mysql-tripitaka:mysql_tripitaka
-  command: uwsgi -s :8000 -w setting.wsgi -p 3
+  command: uwsgi -s :8000 -w cutrect.wsgi -p 3
   #depends_on:
   #  - mysql-tripitaka
   #  - redis-tripitaka
