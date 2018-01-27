@@ -36,6 +36,6 @@ jwt_auth==0.2.9
 psycopg2==2.7.3
 django-jsonfield==1.0.1
 django-bulk-update==2.2.0
-
+pycurl==7.43.0 --global-option="--with-openssl"
 # fix endless migrations issue
 # pip install https://github.com/celery/django-celery-beat/archive/master.zip

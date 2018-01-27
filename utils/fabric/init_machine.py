@@ -33,7 +33,6 @@ def initMachine():
     _setup_directories()
     _upload_pip_conf()
     _install_dependencies()
-
     _install_virtualenv()
     _upload_db_init_script()
     end_time = datetime.now()
@@ -250,7 +249,9 @@ def _install_dependencies():
         "redis-server",
         "nginx",
         "autopostgresqlbackup",
-        "bsdtar"
+        "bsdtar",
+        "ibcurl4-openssl-dev",
+        "libssl-dev"
     ]
     sudo("apt-get -y install %s" % " ".join(packages))
     if "additional_packages" in env and env.additional_packages:
@@ -284,7 +285,6 @@ def _setup_directories():
     sudo('mkdir -p %s' % dirname(env.supervisord_appconf_file))
     sudo('mkdir -p %s' % dirname(env.supervisord_workerconf_file))
     sudo('mkdir -p %s' % dirname(env.rungunicorn_script))
-    # sudo('mkdir -p %(django_user_home)s/tmp' % env)  # Not used
     sudo('mkdir -p %(virtenv)s' % env)
     sudo('mkdir -p %(nginx_htdocs)s' % env)
     sudo('echo "<html><body>nothing here</body></html> " > %(nginx_htdocs)s/index.html' % env)
@@ -304,14 +304,6 @@ def _upload_db_init_script():
     upload_template(template, '/tmp/db_init.sh',
                     context=context, backup=False, use_sudo=True)
     sudo('sh /tmp/db_init.sh')
-
-# echo "10152 65535" > /proc/sys/net/ipv4/ip_local_port_range
-# sysctl -w fs.file-max=128000
-# sysctl -w net.ipv4.tcp_keepalive_time=300
-# sysctl -w net.core.somaxconn=250000
-# sysctl -w net.ipv4.tcp_max_syn_backlog=2500
-# sysctl -w net.core.netdev_max_backlog=2500
-# ulimit -n 10240
 
 
 @task
