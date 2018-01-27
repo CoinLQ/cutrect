@@ -27,6 +27,6 @@ class Command(BaseCommand):
         for sutra in Sutra.objects.all():
             for p in Page2.objects.filter(code__regex='^'+sutra.sid).select_related('reel'):
                 try:
-                    Page(reel_id=p.reel.reel_sn, vol_no=str(p.v_no), page_no=int(p.v_page_no), img_path=p.img_path).save()
+                    Page(reel_id=p.reel.reel_sn, vol_no=str(p.v_no), page_no=int(p.v_page_no)).save()
                 except Exception as e:
                     pass

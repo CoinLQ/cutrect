@@ -41,6 +41,5 @@ DATABASES = {
         'PASSWORD': 'lqdzjsql',
         'HOST': 'www.dzj3000.com',
         'PORT': '5432',
-
     },
 }

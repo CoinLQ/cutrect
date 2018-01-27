@@ -1,5 +1,5 @@
 from django.test import TestCase
-from rect.models import ORGGroup, Schedule, Rect, CCTask, SliceType
+from rect.models import Schedule, Rect, CCTask, SliceType
 from rect.models import Tripitaka, Sutra, Reel, Page, Rect, PageRect
 from cutrect.settings import MEDIA_ROOT
 
@@ -82,7 +82,7 @@ class BaseModelTest(TestCase):
         rects = [Rect(**rect) for rect in rect_datas]
         Rect.objects.bulk_create(rects)
         json =[{'x1': 1200, 'col_id': 'GZ000790v001p0001001', 'y': 0, 'y1': 780, 'x': 1131}, {'x1': 1131, 'col_id': 'GZ000790v001p0001002', 'y': 0, 'y1': 780, 'x': 1088}, {'x1': 1088, 'col_id': 'GZ000790v001p0001003', 'y': 0, 'y1': 780, 'x': 1035}, {'x1': 1035, 'col_id': 'GZ000790v001p0001004', 'y': 0, 'y1': 780, 'x': 984}, {'x1': 984, 'col_id': 'GZ000790v001p0001005', 'y': 0, 'y1': 780, 'x': 940}, {'x1': 940, 'col_id': 'GZ000790v001p0001006', 'y': 0, 'y1': 780, 'x': 891}, {'x1': 891, 'col_id': 'GZ000790v001p0001007', 'y': 0, 'y1': 780, 'x': 841}, {'x1': 841, 'col_id': 'GZ000790v001p0001008', 'y': 0, 'y1': 780, 'x': 790}, {'x1': 790, 'col_id': 'GZ000790v001p0001009', 'y': 0, 'y1': 780, 'x': 744}, {'x1': 744, 'col_id': 'GZ000790v001p0001010', 'y': 0, 'y1': 780, 'x': 696}, {'x1': 696, 'col_id': 'GZ000790v001p0001011', 'y': 0, 'y1': 780, 'x': 646}, {'x1': 646, 'col_id': 'GZ000790v001p0001012', 'y': 0, 'y1': 780, 'x': 598}, {'x1': 598, 'col_id': 'GZ000790v001p0001013', 'y': 0, 'y1': 780, 'x': 550}, {'x1': 550, 'col_id': 'GZ000790v001p0001014', 'y': 0, 'y1': 780, 'x': 501}, {'x1': 501, 'col_id': 'GZ000790v001p0001015', 'y': 0, 'y1': 780, 'x': 452}, {'x1': 452, 'col_id': 'GZ000790v001p0001016', 'y': 0, 'y1': 780, 'x': 406}, {'x1': 406, 'col_id': 'GZ000790v001p0001017', 'y': 0, 'y1': 780, 'x': 358}, {'x1': 358, 'col_id': 'GZ000790v001p0001018', 'y': 0, 'y1': 780, 'x': 310}, {'x1': 310, 'col_id': 'GZ000790v001p0001019', 'y': 0, 'y1': 780, 'x': 260}, {'x1': 260, 'col_id': 'GZ000790v001p0001020', 'y': 0, 'y1': 780, 'x': 212}, {'x1': 212, 'col_id': 'GZ000790v001p0001021', 'y': 0, 'y1': 780, 'x': 164}, {'x1': 164, 'col_id': 'GZ000790v001p0001022', 'y': 0, 'y1': 780, 'x': 116}, {'x1': 116, 'col_id': 'GZ000790v001p0001023', 'y': 0, 'y1': 780, 'x': 0}]
-        page = Page(reel=reel, vol_no="58", page_no=22, json=json, img_path='some_uri')
+        page = Page(reel=reel, vol_no="58", page_no=22, json=json)
         page.save()
         PageRect(page=Page.objects.first(), reel_id=reel.reel_sn, line_count=0, column_count=0, rect_set=pagerect_data["char_data"]).save()
 
@@ -101,7 +101,7 @@ class BaseModelTest(TestCase):
             reel = Reel.objects.get(pk=reel.reel_sn)
             self.assertEquals(reel.rid, 'GZ000790r058')
 
-            p = Page(reel=reel, vol_no="58", page_no=22, img_path='some_uri')
+            p = Page(reel=reel, vol_no="58", page_no=22)
             page = Page.objects.get(pk=p.page_sn)
             self.assertEquals(page.pid, 'GZ000790v058p00220')
 
@@ -205,4 +205,3 @@ class BaseModelTest(TestCase):
 
     def test_make_pagerect_demo(self):
         Page.objects.filter(pid='GZ000790v012p00200')
-    

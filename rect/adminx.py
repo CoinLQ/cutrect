@@ -105,7 +105,7 @@ class SutraAdmin(object):
 
 @xadmin.sites.register(Reel)
 class ReelAdmin(object):
-    list_display = ('rid', 'sutra', 'reel_no', 'ready', 'image_ready', 'image_upload', 'cut_ready', 'column_ready')
+    list_display = ('rid', 'sutra', 'reel_no', 'ready', 'cut_ready', 'column_ready')
     list_display_links = ('rid',)
 
     search_fields = ('rid', 'ready')

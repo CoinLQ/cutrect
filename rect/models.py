@@ -37,15 +37,26 @@ def iterable(cls):
     cls.__iter__ = iterfn
     return cls
 
-class ORGGroup(object):
-    ALI = 0
-    BAIDU = 1
-    HN = 2
-    IDS = (
-        (ALI, u'阿里'),
-        (BAIDU, u'百度'),
-        (HN, u'华南理工'),
-    )
+"""
+格式说明：存储经文内容，换行用\n，每页前有换页标记p\n。读取处理原始数据\r\n为\n。
+"""
+class SutraTextField(models.TextField):
+
+    description = '存储经文内容，换行用\n，每页前有换页标记p\n'
+
+    def __init__(self, *args, **kwargs):
+        kwargs['blank'] = True
+        super().__init__(*args, **kwargs)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        del kwargs["blank"]
+        return name, path, args, kwargs
+
+    def get_prep_value(self, value):
+        value = value.replace('\r\n', '\n')
+        value = super().get_prep_value(value)
+        return self.to_python(value)
 
 
 class SliceType(object):
@@ -192,12 +203,30 @@ class LQSutra(models.Model, TripiMixin):
 
 
 class Tripitaka(models.Model, TripiMixin):
+    MARK_CHOICES = (
+        ('v', 'v: 表示册'),
+        ('r', 'r: 表示卷')
+    )
     code = models.CharField(verbose_name='实体藏经版本编码', primary_key=True, max_length=4, blank=False)
     name = models.CharField(verbose_name='实体藏经名称', max_length=32, blank=False)
+    shortname = models.CharField(verbose_name='简称（用于校勘记）', max_length=32, blank=False)
+    vol_reel_mark = models.CharField('册/卷标记符号', max_length=1, default='r', choices=MARK_CHOICES)
 
     class Meta:
         verbose_name = '实体藏经'
         verbose_name_plural = '实体藏经管理'
+
+class Volume(models.Model):
+    tripitaka = models.ForeignKey(Tripitaka, on_delete=models.CASCADE)
+    vol_no = models.SmallIntegerField(verbose_name='册序号')
+    page_count = models.IntegerField(verbose_name='册页数')
+
+    class Meta:
+        verbose_name = u"实体册"
+        verbose_name_plural = u"实体册"
+
+    def __str__(self):
+        return '%s: 第%s册' % (self.tripitaka.name, self.vol_no)
 
 
 class Sutra(models.Model, TripiMixin):
@@ -206,7 +235,7 @@ class Sutra(models.Model, TripiMixin):
     code = models.CharField(verbose_name='实体经目编码', max_length=5, blank=False)
     variant_code = models.CharField(verbose_name='别本编码', max_length=1, default='0')
     name = models.CharField(verbose_name='实体经目名称', max_length=64, blank=True)
-    lqsutra = models.ForeignKey(LQSutra, verbose_name='龙泉经目编码', null=True, blank=True) #（为"LQ"+ 经序号 + 别本号）
+    lqsutra = models.ForeignKey(LQSutra, verbose_name='龙泉经目编码', null=True, blank=True, on_delete=models.SET_NULL) #（为"LQ"+ 经序号 + 别本号）
     total_reels = models.IntegerField(verbose_name='总卷数', blank=True, default=1)
 
     class Meta:
@@ -221,15 +250,30 @@ class Sutra(models.Model, TripiMixin):
         return self.name
 
 class Reel(models.Model):
+    EDITION_TYPE_UNKNOWN = 0 # 未选择
+    EDITION_TYPE_BASE = 1 # 底本
+    EDITION_TYPE_CHECKED = 2 # 对校本
+    EDITION_TYPE_PROOF = 3 # 参校本
+    EDITION_TYPE_CHOICES = (
+        (EDITION_TYPE_UNKNOWN, '未选择'),
+        (EDITION_TYPE_BASE, '底本'),
+        (EDITION_TYPE_CHECKED, '对校本'),
+        (EDITION_TYPE_PROOF, '参校本'),
+    )
+
     rid = models.CharField(verbose_name='实体藏经卷级总编码', max_length=14, blank=False, primary_key=True)
     sutra = models.ForeignKey(Sutra, related_name='reels')
-    reel_no = models.CharField(verbose_name='经卷序号编码', max_length=3, blank=False)
+    reel_no = models.SmallIntegerField(verbose_name='经卷序号', blank=False)
     ready = models.BooleanField(verbose_name='已准备好', db_index=True, default=False)
-    image_ready = models.BooleanField(verbose_name='图源状态', default=False)
-    image_upload = models.BooleanField(verbose_name='图片上传状态',  default=False)
     txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
     cut_ready = models.BooleanField(verbose_name='切分数据状态', default=False)
     column_ready = models.BooleanField(verbose_name='切列图状态', default=False)
+    start_vol = models.SmallIntegerField('起始册', default=0)
+    start_vol_page = models.SmallIntegerField('起始册的页序号', default=0)
+    end_vol = models.SmallIntegerField('终止册', default=0)
+    end_vol_page = models.SmallIntegerField('终止册的页序号', default=0)
+    text = SutraTextField('经文', default='') #按实际行加了换行符，换页标记为p\n
+
 
     class Meta:
         verbose_name = '实体藏经卷'
@@ -250,14 +294,22 @@ class Page(models.Model):
     pid = models.CharField(verbose_name='实体藏经页级总编码', max_length=21, blank=False, primary_key=True)
     reel = models.ForeignKey(Reel, related_name='pages')
     bar_no = models.CharField(verbose_name='实体藏经页级栏序号', max_length=1, default='0')
-    vol_no = models.CharField(verbose_name='册序号编码', max_length=3, blank=False)
-    page_no = models.IntegerField(verbose_name='册级页序号', default=1, blank=False)
-    img_path = models.CharField(verbose_name='图片路径', max_length=128, blank=False)
+    vol_no = models.SmallIntegerField(verbose_name='册序号（第几）', default=0, blank=False)
+    page_no = models.SmallIntegerField(verbose_name='册级页序号', default=0, blank=False)
+    reel_no = models.SmallIntegerField(verbose_name='卷序号（第几）', default=0, blank=False)
+    reel_page_no = models.SmallIntegerField('卷中页序号', default=0)
     status = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型',
                                               choices=PageStatus.CHOICES, default=PageStatus.INITIAL)
-    json = JSONField(default=dict)
+    json = JSONField(verbose_name='栏信息', default=dict)
     updated_at = models.DateTimeField(verbose_name='更新时间', auto_now=True)
-
+    text = SutraTextField('经文', default='') # 文字校对后的经文
+    cut_info = JSONField(verbose_name='切分信息', default=list)
+    cut_updated_at = models.DateTimeField('切分同步时间', null=True)
+    cut_add_count = models.SmallIntegerField('切分信息增加字数', default=0)
+    cut_wrong_count = models.SmallIntegerField('切分信息识别错的字数', default=0)
+    cut_confirm_count = models.SmallIntegerField('切分信息需要确认的字数', default=0)
+    cut_verify_count = models.SmallIntegerField('切分信息需要确认的字数', default=0)
+    s3_uri = models.CharField(verbose_name='图片路径', max_length=128, blank=False)
 
     def _remote_image_stream(self):
         opener = urllib.request.build_opener()
@@ -268,7 +320,7 @@ class Page(models.Model):
 
     def get_real_path(self):
         # FIXME: 暂时这么写可以，写死了，GEO CDN就失效了。
-        return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/" + self.img_path
+        return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%s/%s.jpg' % (pid[0:2], pid[2:8], pid[8:12], pid)
 
     def down_col_pos(self):
         cut_file = self.get_real_path()[0:-3] + "col"
@@ -834,6 +886,7 @@ class ClassifyTask(Task):
         verbose_name = u"聚类校对任务"
         verbose_name_plural = u"聚类校对任务管理"
 
+
 class PageTask(Task):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='page_tasks', on_delete=models.SET_NULL,
                                  verbose_name=u'切分计划')
@@ -844,6 +897,7 @@ class PageTask(Task):
     class Meta:
         verbose_name = u"逐字校对任务"
         verbose_name_plural = u"逐字校对任务管理"
+
 
 class AbsentTask(Task):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='absent_tasks', on_delete=models.SET_NULL,
@@ -924,6 +978,7 @@ class DeletionCheckItem(models.Model):
 
     def confirm(self):
         Rect.objects.filter(pk=self.rect_id).all().delete()
+
 
     class Meta:
         verbose_name = u"删框记录"

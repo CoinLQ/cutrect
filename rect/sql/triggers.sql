@@ -56,7 +56,7 @@ CREATE TRIGGER fn_gen_sid
             EXECUTE PROCEDURE fn_gen_sid();
 
 CREATE or REPLACE FUNCTION fn_gen_rid() RETURNS trigger AS $fn_gen_rid$
-BEGIN NEW.rid := NEW.sutra_id||'r'|| lpad(NEW.reel_no, 3, '0');
+BEGIN NEW.rid := NEW.sutra_id||'r'|| to_char(NEW.reel_no,'FM000') ;
 RETURN NEW;
 END;
 $fn_gen_rid$ LANGUAGE plpgsql;
@@ -71,9 +71,12 @@ CREATE TRIGGER fn_gen_rid
 CREATE or REPLACE FUNCTION fn_gen_pid() RETURNS trigger AS $fn_gen_pid$
 BEGIN
 IF NEW.bar_no IS NULL THEN
-NEW.pid := LEFT(NEW.reel_id, 8)||'v'||lpad(NEW.vol_no, 3, '0')||'p'||to_char(NEW.page_no,'FM0000')||'0';
+NEW.bar_no := '0';
+END IF;
+IF NEW.vol_no IS NULL THEN
+NEW.pid := LEFT(NEW.reel_id, 8)||'r'||to_char(NEW.reel_no,'FM000')||'p'||to_char(NEW.page_no,'FM0000')||NEW.bar_no;
 ELSE
-NEW.pid := LEFT(NEW.reel_id, 8)||'v'||lpad(NEW.vol_no, 3, '0')||'p'||to_char(NEW.page_no,'FM0000')||NEW.bar_no;
+NEW.pid := LEFT(NEW.reel_id, 8)||'v'||to_char(NEW.vol_no,'FM000')||'p'||to_char(NEW.page_no,'FM0000')||NEW.bar_no;
 END IF;
 RETURN NEW;
 END;
