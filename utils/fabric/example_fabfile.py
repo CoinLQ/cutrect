@@ -88,5 +88,5 @@ def example():
     env.supervisor_autorestart = 'true'  # true or false
     env.supervisor_redirect_stderr = 'true'  # true or false
     env.supervisor_stdout_logfile = '%(django_user_home)s/logs/projects/supervisord_%(project)s.log' % env
-    env.supervisord_conf_file = '%(django_user_home)s/configs/supervisord/%(project)s.conf' % env
+    env.supervisord_appconf_file = '%(django_user_home)s/configs/supervisord/%(project)s.conf' % env
     ### END supervisor settings ###

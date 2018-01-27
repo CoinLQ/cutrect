@@ -32,9 +32,9 @@ def deploy():
     puts(green_bg('Start deploy...'))
     start_time = datetime.now()
 
-    # git_pull()
-    # _install_requirements()
-    # _prepare_django_project()
+    git_pull()
+    _install_requirements()
+    _prepare_django_project()
     _supervisor_restart()
 
     end_time = datetime.now()

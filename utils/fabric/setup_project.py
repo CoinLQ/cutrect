@@ -23,10 +23,12 @@ def setup_project():
     # _git_clone()
     # _install_requirements()
     # _upload_nginx_conf()
-    # _upload_webpage_nginx_conf()
-    _upload_rungunicorn_script()
+    _upload_webpage_nginx_conf()
+    #_update_logpremission_script()
+    _upload_celery_worker_conf()
+    _upload_celery_beat_conf()
     # _upload_supervisord_conf()
-    _prepare_django_app_path()
+    # _prepare_django_app_path()
     end_time = datetime.now()
     finish_message = '[%s] Correctly finished in %i seconds' % \
     (green_bg(end_time.strftime('%H:%M:%S')), (end_time - start_time).seconds)
@@ -128,17 +130,43 @@ def _reload_supervisorctl():
 
 def _upload_supervisord_conf():
     ''' upload supervisor conf '''
-    local_supervisord_conf_file_path = "%s/conf/supervisord.conf" % dirname(env.real_fabfile)
+    local_supervisord_conf_file_path = "%s/conf/supervisord_gunicorn.conf" % dirname(env.real_fabfile)
     if isfile(local_supervisord_conf_file_path):
-        ''' we use user defined supervisord.conf template '''
+        ''' we use user defined supervisord_*.conf template '''
         template = local_supervisord_conf_file_path
     else:
-        template = '%s/conf/supervisord.conf' % fabric_utils_path
-    upload_template(template, env.supervisord_conf_file,
+        template = '%s/conf/supervisord_gunicorn.conf' % fabric_utils_path
+    upload_template(template, env.supervisord_appconf_file,
                     context=env, backup=False, use_sudo=True)
-    sudo('ln -sf %s /etc/supervisor/conf.d/%s' % (env.supervisord_conf_file, basename(env.supervisord_conf_file)))
+    sudo('ln -sf %s /etc/supervisor/conf.d/%s' % (env.supervisord_appconf_file, basename(env.supervisord_appconf_file)))
     _reload_supervisorctl()
 
+
+def _upload_celery_worker_conf():
+    ''' upload supervisor conf '''
+    local_supervisord_conf_file_path = "%s/conf/supervisord_worker.conf" % dirname(env.real_fabfile)
+    if isfile(local_supervisord_conf_file_path):
+        ''' we use user defined supervisord_*.conf template '''
+        template = local_supervisord_conf_file_path
+    else:
+        template = '%s/conf/supervisord_worker.conf' % fabric_utils_path
+    upload_template(template, env.supervisord_workerconf_file,
+                    context=env, backup=False, use_sudo=True)
+    sudo('ln -sf %s /etc/supervisor/conf.d/%s' % (env.supervisord_workerconf_file, basename(env.supervisord_workerconf_file)))
+    _reload_supervisorctl()
+
+def _upload_celery_beat_conf():
+    ''' upload supervisor conf '''
+    local_supervisord_conf_file_path = "%s/conf/supervisord_beat.conf" % dirname(env.real_fabfile)
+    if isfile(local_supervisord_conf_file_path):
+        ''' we use user defined supervisord_*.conf template '''
+        template = local_supervisord_conf_file_path
+    else:
+        template = '%s/conf/supervisord_beat.conf' % fabric_utils_path
+    upload_template(template, env.supervisord_beatconf_file,
+                    context=env, backup=False, use_sudo=True)
+    sudo('ln -sf %s /etc/supervisor/conf.d/%s' % (env.supervisord_beatconf_file, basename(env.supervisord_beatconf_file)))
+    _reload_supervisorctl()
 
 def _prepare_django_app_path():
     for path in [env.django_media_path, env.django_static_path]:
@@ -148,17 +176,11 @@ def _prepare_django_app_path():
         sudo('chown -R %s %s' % (env.login_user, path))
 
 
-def _upload_rungunicorn_script():
+def _update_logpremission_script():
     ''' upload rungunicorn conf '''
-    if isfile('scripts/rungunicorn.sh'):
-        ''' we use user defined rungunicorn file '''
-        template = 'scripts/rungunicorn.sh'
-    else:
-        template = '%s/scripts/rungunicorn.sh' % fabric_utils_path
-    context = copy(env)
-    upload_template(template, env.rungunicorn_script,
-                    context=context, backup=False, use_sudo=True)
     sudo('chmod +x %s' % env.rungunicorn_script)
     sudo('mkdir -p /opt/django/logs/%s' % env.project)
+    sudo('touch /opt/django/logs/%s/standard.log' % env.project)
+    sudo('chmod -R 777 /opt/django/logs/%s' % env.project)
     sudo('chown django -R /opt/django/logs')
 

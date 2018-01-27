@@ -367,7 +367,7 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
     'queue_name_prefix': 'lq-prod-'
 }
 
-CELERY_WORKER_STATE_DB = '/var/run/celery/worker.db'
+# CELERY_WORKER_STATE_DB = '/var/run/celery/worker.db'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_WORKER_PREFETCH_MULTIPLIER = 0         # See https://github.com/celery/celery/issues/3712
 #CELERY_RESULT_BACKEND = 'sqla+sqlite:///results.sqlite'
@@ -389,7 +389,7 @@ CELERY_IMPORTS = (
 ## 系统邮箱设置
 EMAIL_HOST = 'smtp.sina.cn'
 EMAIL_PORT = 25
-EMAIL_HOST_USER = '17074810135m0@sina.cn'
+EMAIL_HOST_USER = '17074810135@sina.cn'
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PW', '')
 EMAIL_USE_TLS = True
 EMAIL_FROM = EMAIL_HOST_USER

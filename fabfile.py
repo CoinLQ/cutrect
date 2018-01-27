@@ -3,7 +3,7 @@
 from os.path import join
 from fabric.api import env, task
 from utils.fabric.tasks import *
-from utils.fabric.init_machine import initMachine
+from utils.fabric.init_machine import initMachine, tune_system
 from utils.fabric.setup_project import setup_project, public_webpage
 
 @task
@@ -94,6 +94,10 @@ def cutrect():
     env.supervisor_autorestart = 'true'  # true or false
     env.supervisor_redirect_stderr = 'true'  # true or false
     env.supervisor_stdout_logfile = '%(django_user_home)s/logs/projects/supervisord_%(project)s.log' % env
-    env.supervisord_conf_file = '%(django_user_home)s/configs/supervisord/%(project)s.conf' % env
+    env.supervisord_appconf_file = '%(django_user_home)s/configs/supervisord/%(project)s.conf' % env
+    env.supervisord_workerconf_file = '%(django_user_home)s/configs/supervisord/%(project)s_worker.conf' % env
+    env.supervisord_beatconf_file = '%(django_user_home)s/configs/supervisord/%(project)s_beat.conf' % env
+    env.worker_logfile = '%(django_user_home)s/logs/%(project)s/%(project)s_celery_work.log' % env
+    env.beat_logfile = '%(django_user_home)s/logs/%(project)s/%(project)s_celery_beat.log' % env
     #  END supervisor settings ###
     env.supervisor_celery_worker_name = 'prod-celery'

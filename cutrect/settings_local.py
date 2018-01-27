@@ -115,3 +115,13 @@ DATABASES = {
 #     }
 # }
 #DATABASE_ROUTERS = ['cutrect.db_router.DBRouter']
+
+## 系统邮箱设置
+EMAIL_HOST = 'smtp.sina.cn'
+EMAIL_PORT = 25
+EMAIL_HOST_USER = '17074810135m0@sina.cn'
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PW', '')
+EMAIL_USE_TLS = True
+EMAIL_FROM = EMAIL_HOST_USER
+SERVER_EMAIL = EMAIL_HOST_USER
+

@@ -236,18 +236,17 @@ class DelTaskViewSet(RectBulkOpMixin,
             return Response({"status": -1,
                              "msg": "No Permission!"})
         rects = request.data['rects']
-        
+
         _items = [dict((k,v) for (k,v) in filter(lambda x: x[0] in can_write_fields, rect_del.items())) for rect_del in rects]
 
         del_items = [DeletionCheckItem(**_rect) for _rect in _items]
         for it in del_items:
             it.verifier = task.owner
-        DeletionCheckItem.objects.bulk_update(del_items, update_fields=['result', 'verifier']) 
-       
+        DeletionCheckItem.objects.bulk_update(del_items, update_fields=['result', 'verifier'])
+
         task.done()
         task.execute()
-        return Response({"status": 0,
-                         "task_id": pk })
+        return Response({"status": 0, "task_id": pk })
 
 
     @detail_route(methods=['post'], url_path='abandon')
@@ -266,8 +265,11 @@ class DelTaskViewSet(RectBulkOpMixin,
     def obtain(self, request):
         staff = request.user
         task = retrieve_deltask(staff)
-        queryset = task.del_task_items.prefetch_related('modifier', 'verifier') 
-        
+        if not task:
+            return Response({"status": -1,
+                             "msg": "All tasks has been done!"})
+        queryset = task.del_task_items.prefetch_related('modifier', 'verifier')
+
         items = DeletionCheckItemSerializer(data=queryset, many=True)
         items.is_valid()
         if not task:

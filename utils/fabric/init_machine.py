@@ -28,6 +28,7 @@ def initMachine():
     start_time = datetime.now()
 
     _verify_sudo
+    sysctl()
     _create_django_user()
     _setup_directories()
     _upload_pip_conf()
@@ -186,10 +187,10 @@ def test_configuration(verbose=True):
         errors.append('"supervisor_stdout_logfile" configuration missing')
     elif verbose:
         parameters_info.append(('supervisor_stdout_logfile', env.supervisor_stdout_logfile))
-    if 'supervisord_conf_file' not in env or not env.supervisord_conf_file:
-        errors.append('"supervisord_conf_file" configuration missing')
+    if 'supervisord_appconf_file' not in env or not env.supervisord_appconf_file:
+        errors.append('"supervisord_appconf_file" configuration missing')
     elif verbose:
-        parameters_info.append(('supervisord_conf_file', env.supervisord_conf_file))
+        parameters_info.append(('supervisord_appconf_file', env.supervisord_appconf_file))
 
     if errors:
         if len(errors) == 29:
@@ -248,7 +249,8 @@ def _install_dependencies():
         "postgresql-10",
         "redis-server",
         "nginx",
-        "autopostgresqlbackup"
+        "autopostgresqlbackup",
+        "bsdtar"
     ]
     sudo("apt-get -y install %s" % " ".join(packages))
     if "additional_packages" in env and env.additional_packages:
@@ -279,7 +281,8 @@ def _setup_directories():
 
     sudo('mkdir -p %s' % dirname(env.nginx_conf_file))
     sudo('mkdir -p %s' % dirname(env.pip_conf_file))
-    sudo('mkdir -p %s' % dirname(env.supervisord_conf_file))
+    sudo('mkdir -p %s' % dirname(env.supervisord_appconf_file))
+    sudo('mkdir -p %s' % dirname(env.supervisord_workerconf_file))
     sudo('mkdir -p %s' % dirname(env.rungunicorn_script))
     # sudo('mkdir -p %(django_user_home)s/tmp' % env)  # Not used
     sudo('mkdir -p %(virtenv)s' % env)
@@ -301,3 +304,53 @@ def _upload_db_init_script():
     upload_template(template, '/tmp/db_init.sh',
                     context=context, backup=False, use_sudo=True)
     sudo('sh /tmp/db_init.sh')
+
+# echo "10152 65535" > /proc/sys/net/ipv4/ip_local_port_range
+# sysctl -w fs.file-max=128000
+# sysctl -w net.ipv4.tcp_keepalive_time=300
+# sysctl -w net.core.somaxconn=250000
+# sysctl -w net.ipv4.tcp_max_syn_backlog=2500
+# sysctl -w net.core.netdev_max_backlog=2500
+# ulimit -n 10240
+
+
+@task
+# Sysctl security
+def sysctl():
+	puts(green("[*]") + " Modifying /etc/sysctl.conf")
+	sudo("echo net.ipv4.ip_forward = 0 > /etc/sysctl.conf")
+	sudo("echo net.ipv4.conf.all.send_redirects = 0 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.conf.default.send_redirects = 0 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.tcp_max_syn_backlog = 1280 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.icmp_echo_ignore_broadcasts = 1 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.conf.all.accept_source_route = 0 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.conf.all.accept_redirects = 0 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.conf.all.secure_redirects = 0 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.conf.all.log_martians = 1 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.conf.default.accept_source_route = 0 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.conf.default.accept_redirects = 0 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.conf.default.secure_redirects = 0 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.icmp_echo_ignore_broadcasts = 1 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.icmp_ignore_bogus_error_responses = 1 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.tcp_syncookies = 1 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.conf.default.rp_filter = 1 >> /etc/sysctl.conf")
+	sudo("echo net.ipv4.tcp_timestamps = 0 >> /etc/sysctl.conf")
+
+@task
+def tune_system():
+    sudo('echo "10152 65535" > /proc/sys/net/ipv4/ip_local_port_range')
+    sudo('sysctl -w fs.file-max=128000')
+    sudo('sysctl -w net.core.somaxconn=250000')
+    sudo('sysctl -w net.ipv4.tcp_max_syn_backlog=2500')
+    sudo('sysctl -w net.core.netdev_max_backlog=2500')
+    sudo('ulimit -n 10240')
+    sudo('sysctl -w fs.file-max=128000')
+    sudo("echo net.core.somaxconn=250000 >> /etc/sysctl.conf")
+    sudo("echo net.ipv4.tcp_max_syn_backlog=2500 >> /etc/sysctl.conf")
+    sudo("echo net.core.netdev_max_backlog=2500 >> /etc/sysctl.conf")
+    sudo("echo fs.file-max=128000 >> /etc/sysctl.conf")
+    sudo("echo net.ipv4.ip_local_port_range=10152 65535 >> /etc/sysctl.conf")
+    sudo("echo * soft nofile 10240 >> /etc/security/limits.conf")
+    sudo("echo * hard nofile 10240 >> /etc/security/limits.conf")
+
+
