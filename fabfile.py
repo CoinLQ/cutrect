@@ -89,6 +89,8 @@ def cutrect():
     # http://supervisord.org/configuration.html#program-x-section-settings
     # default: env.project
     env.supervisor_program_name = env.project
+    env.supervisor_worker_program_name = '%(project)s_celery_worker' % env
+    env.supervisor_beat_program_name = '%(project)s_celery_beat' % env
     env.supervisorctl = '/usr/bin/supervisorctl'  # supervisorctl script
     env.supervisor_autostart = 'true'  # true or false
     env.supervisor_autorestart = 'true'  # true or false

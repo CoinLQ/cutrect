@@ -63,6 +63,8 @@ def _prepare_django_project():
 def _supervisor_restart():
     with settings(hide('running', 'stdout', 'stderr', 'warnings'), warn_only=True):
         res = sudo('%(supervisorctl)s restart %(supervisor_program_name)s' % env)
+        res = sudo('%(supervisorctl)s restart %(supervisor_worker_program_name)s' % env)
+        res = sudo('%(supervisorctl)s restart %(supervisor_beat_program_name)s' % env)
 
     if 'ERROR' in res:
         print("%s NOT STARTED!" % env.supervisor_program_name)
