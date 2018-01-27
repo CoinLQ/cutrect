@@ -183,7 +183,7 @@ class TripiMixin(object):
 class Node(models.Model):
     name = models.CharField(u"名称", max_length=64)
     code = models.CharField(u"节点代码", max_length=27, primary_key=True)
-    parent = models.ForeignKey('self', verbose_name=u'父节点', related_name='children', null=True, blank=True)
+    parent = models.ForeignKey('self', verbose_name=u'父节点', related_name='children', null=True, blank=True, on_delete=models.CASCADE)
 
     class Meta:
         verbose_name=u'节点'
@@ -231,7 +231,7 @@ class Volume(models.Model):
 
 class Sutra(models.Model, TripiMixin):
     sid = models.CharField(verbose_name='实体藏经|唯一经号编码', editable=True, max_length=10, primary_key=True) # 藏经版本编码 + 5位经序号+1位别本号
-    tripitaka = models.ForeignKey(Tripitaka, related_name='sutras')
+    tripitaka = models.ForeignKey(Tripitaka, related_name='sutras', on_delete=models.SET_NULL, null=True)
     code = models.CharField(verbose_name='实体经目编码', max_length=5, blank=False)
     variant_code = models.CharField(verbose_name='别本编码', max_length=1, default='0')
     name = models.CharField(verbose_name='实体经目名称', max_length=64, blank=True)
@@ -262,7 +262,7 @@ class Reel(models.Model):
     )
 
     rid = models.CharField(verbose_name='实体藏经卷级总编码', max_length=14, blank=False, primary_key=True)
-    sutra = models.ForeignKey(Sutra, related_name='reels')
+    sutra = models.ForeignKey(Sutra, related_name='reels', on_delete=models.CASCADE)
     reel_no = models.SmallIntegerField(verbose_name='经卷序号', blank=False)
     ready = models.BooleanField(verbose_name='已准备好', db_index=True, default=False)
     txt_ready = models.BooleanField(verbose_name='文本状态', default=False)
@@ -292,7 +292,7 @@ class Reel(models.Model):
 
 class Page(models.Model):
     pid = models.CharField(verbose_name='实体藏经页级总编码', max_length=21, blank=False, primary_key=True)
-    reel = models.ForeignKey(Reel, related_name='pages')
+    reel = models.ForeignKey(Reel, related_name='pages', on_delete=models.SET_NULL, null=True)
     bar_no = models.CharField(verbose_name='实体藏经页级栏序号', max_length=1, default='0')
     vol_no = models.SmallIntegerField(verbose_name='册序号（第几）', default=0, blank=False)
     page_no = models.SmallIntegerField(verbose_name='册级页序号', default=0, blank=False)
@@ -389,7 +389,7 @@ class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     page = models.ForeignKey(Page, null=True, blank=True, related_name='pagerects', on_delete=models.SET_NULL,
                              verbose_name=u'关联源页信息')
-    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='reels')
+    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='reels', on_delete=models.SET_NULL)
     op = models.PositiveSmallIntegerField(db_index=True, verbose_name=u'操作类型', default=OpStatus.NORMAL)
     line_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大行数') # 最大文本行号
     column_count = models.IntegerField(null=True, blank=True, verbose_name=u'最大列数') # 最大文本长度
@@ -498,7 +498,7 @@ class Rect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     cid = models.CharField(verbose_name=u'经字号', max_length=28, db_index=True)
-    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects')
+    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='rects', on_delete=models.SET_NULL)
     page_code = models.CharField(max_length=23, blank=False, verbose_name=u'关联源页CODE', db_index = True)
     column_set = JSONField(default=list, verbose_name=u'切字块所在切列JSON数据集')
     char_no = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'字号', default=0)
@@ -636,7 +636,7 @@ def create_new_node(sender, instance, created, **kwargs):
 
 class Patch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='patches') # 注意：卷编码这里没有考虑余量
+    reel = models.ForeignKey(Reel, null=True, blank=True, related_name='patches', on_delete=models.CASCADE) # 注意：卷编码这里没有考虑余量
     op = models.PositiveSmallIntegerField(verbose_name=u'操作类型', default=OpStatus.NORMAL)
     x = models.PositiveSmallIntegerField(verbose_name=u'X坐标', default=0)
     y = models.PositiveSmallIntegerField(verbose_name=u'Y坐标', default=0)
@@ -655,8 +655,8 @@ class Patch(models.Model):
     rect_h = models.PositiveSmallIntegerField(verbose_name=u'原字块高度', default=1)
     ts = models.CharField(null=True, blank=True, verbose_name=u'修订文字', max_length=2, default='')
     result = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'审定意见', default=ReviewResult.INITIAL)  # 1 同意 2 不同意
-    modifier = models.ForeignKey(Staff, null=True, blank=True, related_name='modify_patches', verbose_name=u'修改人')
-    verifier = models.ForeignKey(Staff, null=True, blank=True, related_name='verify_patches', verbose_name=u'审定人')
+    modifier = models.ForeignKey(Staff, null=True, blank=True, related_name='modify_patches', verbose_name=u'修改人', on_delete=models.SET_NULL)
+    verifier = models.ForeignKey(Staff, null=True, blank=True, related_name='verify_patches', verbose_name=u'审定人', on_delete=models.SET_NULL)
 
     submitted_at = models.DateTimeField(verbose_name='修订时间', auto_now_add=True)
     updated_at = models.DateTimeField(null=True, blank=True, verbose_name=u'更新时间', auto_now=True)
@@ -754,7 +754,7 @@ class Schedule_Task_Statistical(models.Model):
 class Reel_Task_Statistical(models.Model):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='schedule_reel_task_statis',
                                  on_delete=models.SET_NULL, verbose_name=u'切分计划')
-    reel = models.ForeignKey(Reel, related_name='reel_tasks_statis')
+    reel = models.ForeignKey(Reel, related_name='reel_tasks_statis', on_delete=models.SET_NULL, null=True)
     amount_of_cctasks = models.IntegerField(verbose_name=u'置信任务总数', default=-1)
     completed_cctasks = models.IntegerField(verbose_name=u'置信任务完成数', default=0)
     amount_of_absenttasks = models.IntegerField(verbose_name=u'查漏任务总数', default=-1)
@@ -866,7 +866,7 @@ class CCTask(Task):
                                  verbose_name=u'切分计划')
     count = models.IntegerField("任务字块数", default=20)
     cc_threshold = models.FloatField("最高置信度")
-    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='cc_tasks')
+    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='cc_tasks', on_delete=models.SET_NULL)
     rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_json]
 
     class Meta:
@@ -879,7 +879,7 @@ class ClassifyTask(Task):
                                  verbose_name=u'切分计划')
     count = models.IntegerField("任务字块数", default=10)
     char_set = models.TextField(null=True, blank=True, verbose_name=u'字符集')
-    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='classify_tasks')
+    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='classify_tasks', on_delete=models.SET_NULL)
     rect_set = JSONField(default=list, verbose_name=u'字块集') # [rect_json]
 
     class Meta:
@@ -891,7 +891,7 @@ class PageTask(Task):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='page_tasks', on_delete=models.SET_NULL,
                                  verbose_name=u'切分计划')
     count = models.IntegerField("任务页的数量", default=1)
-    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='page_tasks')
+    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='page_tasks', on_delete=models.SET_NULL)
     page_set = JSONField(default=list, verbose_name=u'页的集合') # [page_json]
 
     class Meta:
@@ -903,7 +903,7 @@ class AbsentTask(Task):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='absent_tasks', on_delete=models.SET_NULL,
                                  verbose_name=u'切分计划')
     count = models.IntegerField("任务页的数量", default=1)
-    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='absent_tasks')
+    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='absent_tasks', on_delete=models.SET_NULL)
     page_set = JSONField(default=list, verbose_name=u'页的集合') # [page_id, page_id]
 
     class Meta:
@@ -915,7 +915,7 @@ class DelTask(Task):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='del_tasks', on_delete=models.SET_NULL,
                                  verbose_name=u'切分计划')
     count = models.IntegerField("任务字块数", default=10)
-    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='del_tasks')
+    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='del_tasks', on_delete=models.SET_NULL)
     rect_set = JSONField(default=list, verbose_name=u'字块集') # [deletion_item_id, deletion_item_id]
 
     class Meta:
@@ -934,7 +934,7 @@ class ReviewTask(Task):
     schedule = models.ForeignKey(Schedule, null=True, blank=True, related_name='review_tasks', on_delete=models.SET_NULL,
                                  verbose_name=u'切分计划')
     count = models.IntegerField("任务字块数", default=10)
-    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='review_tasks')
+    owner = models.ForeignKey(Staff, null=True, blank=True, related_name='review_tasks', on_delete=models.SET_NULL)
     rect_set = JSONField(default=list, verbose_name=u'字块补丁集') # [patch_id, patch_id]
 
     class Meta:
@@ -957,8 +957,8 @@ class DeletionCheckItem(models.Model):
     ch = models.CharField(null=True, blank=True, verbose_name=u'文字', max_length=2, default='')
 
     rect_id = models.CharField(verbose_name='字块CID', max_length=128, blank=False)
-    modifier = models.ForeignKey(Staff, null=True, blank=True, related_name='modify_deletions', verbose_name=u'修改人')
-    verifier = models.ForeignKey(Staff, null=True, blank=True, related_name='verify_deletions', verbose_name=u'审定人')
+    modifier = models.ForeignKey(Staff, null=True, blank=True, related_name='modify_deletions', verbose_name=u'修改人', on_delete=models.SET_NULL)
+    verifier = models.ForeignKey(Staff, null=True, blank=True, related_name='verify_deletions', verbose_name=u'审定人', on_delete=models.SET_NULL)
     result = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=u'审定意见', default=ReviewResult.INITIAL)  # 1 同意 2 不同意
     del_task = models.ForeignKey(DelTask, null=True, blank=True, related_name='del_task_items', on_delete=models.SET_NULL,
                                  verbose_name=u'删框任务')
@@ -986,7 +986,7 @@ class DeletionCheckItem(models.Model):
 
 
 class ActivityLog(models.Model):
-    user = models.ForeignKey(Staff, related_name='activities')
+    user = models.ForeignKey(Staff, related_name='activities', on_delete=models.SET_NULL, null=True)
     log = models.CharField(verbose_name=u'记录', max_length=128, default='')
     object_type = models.CharField(verbose_name=u'对象类型', max_length=32)
     object_pk = models.CharField(verbose_name=u'对象主键', max_length=64)
