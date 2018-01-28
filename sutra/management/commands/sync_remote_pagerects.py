@@ -45,14 +45,14 @@ class Command(BaseCommand):
 
     def expand_pagerects(self, check_pic = False):
         opener = urllib.request.build_opener()
-        for page in Page.objects.filter(status=PageStatus.RECT_NOTREADY).prefetch_related('pagerects'):
+        for page in Page.objects.filter(status=PageStatus.RECT_COL_NOTREADY).prefetch_related('pagerects'):
             page_rect = page.pagerects.first()
             if len(page_rect.rect_set)==0:
                 print("RECTSET EMPTY! PID:" + page.pid)
                 continue
             page_rect.rebuild_rect()
             print(page.pid + ": Expand rect done!")
-            page.status = PageStatus.COL_PIC_NOTFOUND
+            page.status = PageStatus.READY
             if check_pic:
                 try:
                     opener.open(page.get_real_path())
@@ -63,12 +63,13 @@ class Command(BaseCommand):
         print("pages CUT_PIC_NOTFOUND count: {0}".format(Page.objects.filter(status=PageStatus.CUT_PIC_NOTFOUND).count()))
 
     def expand_pagecols(self, check_pic = True):
-        for page in Page.objects.filter(status=PageStatus.COL_PIC_NOTFOUND):
+        for page in Page.objects.filter(status=PageStatus.COL_POS_NOTFOUND):
             page.down_col_pos()
         print('done')
 
     def insert_col2rect(self):
         for page in Page.objects.filter(status=PageStatus.RECT_COL_NOTREADY):
+            print(page.pid)
             if(PageRect.reformat_rects(page.pid)):
                 page.status = PageStatus.READY
                 page.save()

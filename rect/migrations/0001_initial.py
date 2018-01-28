@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 from django.db import migrations, models
 import django.db.models.deletion
-import jsonfield.fields
+from rect.lib import fields
 import rect.models
 import uuid
 
@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 ('priority', models.PositiveSmallIntegerField(choices=[(1, '低'), (3, '中'), (5, '高'), (7, '最高')], db_index=True, default=3, verbose_name='任务优先级')),
                 ('update_date', models.DateField(null=True, verbose_name='最近处理时间')),
                 ('count', models.IntegerField(default=1, verbose_name='任务页的数量')),
-                ('page_set', jsonfield.fields.JSONField(default=list, verbose_name='页的集合')),
+                ('page_set', fields.JSONField(default=list, verbose_name='页的集合')),
                 ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='absent_tasks', to='jwt_auth.Staff')),
             ],
             options={
@@ -60,7 +60,7 @@ class Migration(migrations.Migration):
                 ('update_date', models.DateField(null=True, verbose_name='最近处理时间')),
                 ('count', models.IntegerField(default=20, verbose_name='任务字块数')),
                 ('cc_threshold', models.FloatField(verbose_name='最高置信度')),
-                ('rect_set', jsonfield.fields.JSONField(default=list, verbose_name='字块集')),
+                ('rect_set', fields.JSONField(default=list, verbose_name='字块集')),
                 ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='cc_tasks', to='jwt_auth.Staff')),
             ],
             options={
@@ -94,7 +94,7 @@ class Migration(migrations.Migration):
                 ('update_date', models.DateField(null=True, verbose_name='最近处理时间')),
                 ('count', models.IntegerField(default=10, verbose_name='任务字块数')),
                 ('char_set', models.TextField(blank=True, null=True, verbose_name='字符集')),
-                ('rect_set', jsonfield.fields.JSONField(default=list, verbose_name='字块集')),
+                ('rect_set', fields.JSONField(default=list, verbose_name='字块集')),
                 ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='classify_tasks', to='jwt_auth.Staff')),
             ],
             options={
@@ -135,7 +135,7 @@ class Migration(migrations.Migration):
                 ('priority', models.PositiveSmallIntegerField(choices=[(1, '低'), (3, '中'), (5, '高'), (7, '最高')], db_index=True, default=3, verbose_name='任务优先级')),
                 ('update_date', models.DateField(null=True, verbose_name='最近处理时间')),
                 ('count', models.IntegerField(default=10, verbose_name='任务字块数')),
-                ('rect_set', jsonfield.fields.JSONField(default=list, verbose_name='字块集')),
+                ('rect_set', fields.JSONField(default=list, verbose_name='字块集')),
                 ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='del_tasks', to='jwt_auth.Staff')),
             ],
             options={
@@ -178,10 +178,10 @@ class Migration(migrations.Migration):
                 ('reel_no', models.SmallIntegerField(default=0, verbose_name='卷序号（第几）')),
                 ('reel_page_no', models.SmallIntegerField(default=0, verbose_name='卷中页序号')),
                 ('status', models.PositiveSmallIntegerField(choices=[(0, '初始化'), (1, '切分数据未上传'), (2, '数据解析失败'), (3, '字块数据未展开'), (4, '图片不存在'), (5, '列图不存在'), (6, '列图坐标不存在'), (7, '字块对应列图未准备'), (8, '字块对应列图不存在'), (9, '已准备好'), (10, '已入卷标记')], db_index=True, default=0, verbose_name='操作类型')),
-                ('json', jsonfield.fields.JSONField(default=dict, verbose_name='栏信息')),
+                ('json', fields.JSONField(default=dict, verbose_name='栏信息')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='更新时间')),
                 ('text', rect.models.SutraTextField(default='', verbose_name='经文')),
-                ('cut_info', jsonfield.fields.JSONField(default=list, verbose_name='切分信息')),
+                ('cut_info', fields.JSONField(default=list, verbose_name='切分信息')),
                 ('cut_updated_at', models.DateTimeField(null=True, verbose_name='切分同步时间')),
                 ('cut_add_count', models.SmallIntegerField(default=0, verbose_name='切分信息增加字数')),
                 ('cut_wrong_count', models.SmallIntegerField(default=0, verbose_name='切分信息识别错的字数')),
@@ -201,7 +201,7 @@ class Migration(migrations.Migration):
                 ('op', models.PositiveSmallIntegerField(db_index=True, default=1, verbose_name='操作类型')),
                 ('line_count', models.IntegerField(blank=True, null=True, verbose_name='最大行数')),
                 ('column_count', models.IntegerField(blank=True, null=True, verbose_name='最大列数')),
-                ('rect_set', jsonfield.fields.JSONField(default=list, verbose_name='切字块JSON切分数据集')),
+                ('rect_set', fields.JSONField(default=list, verbose_name='切字块JSON切分数据集')),
                 ('created_at', models.DateTimeField(auto_now_add=True, null=True, verbose_name='创建时间')),
                 ('primary', models.BooleanField(default=True, verbose_name='主切分方案')),
                 ('page', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='pagerects', to='rect.Page', verbose_name='关联源页信息')),
@@ -222,7 +222,7 @@ class Migration(migrations.Migration):
                 ('priority', models.PositiveSmallIntegerField(choices=[(1, '低'), (3, '中'), (5, '高'), (7, '最高')], db_index=True, default=3, verbose_name='任务优先级')),
                 ('update_date', models.DateField(null=True, verbose_name='最近处理时间')),
                 ('count', models.IntegerField(default=1, verbose_name='任务页的数量')),
-                ('page_set', jsonfield.fields.JSONField(default=list, verbose_name='页的集合')),
+                ('page_set', fields.JSONField(default=list, verbose_name='页的集合')),
                 ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='page_tasks', to='jwt_auth.Staff')),
             ],
             options={
@@ -268,7 +268,7 @@ class Migration(migrations.Migration):
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('cid', models.CharField(db_index=True, max_length=28, verbose_name='经字号')),
                 ('page_code', models.CharField(db_index=True, max_length=23, verbose_name='关联源页CODE')),
-                ('column_set', jsonfield.fields.JSONField(default=list, verbose_name='切字块所在切列JSON数据集')),
+                ('column_set', fields.JSONField(default=list, verbose_name='切字块所在切列JSON数据集')),
                 ('char_no', models.PositiveSmallIntegerField(blank=True, default=0, null=True, verbose_name='字号')),
                 ('line_no', models.PositiveSmallIntegerField(blank=True, default=0, null=True, verbose_name='行号')),
                 ('op', models.PositiveSmallIntegerField(default=1, verbose_name='操作类型')),
@@ -338,7 +338,7 @@ class Migration(migrations.Migration):
                 ('priority', models.PositiveSmallIntegerField(choices=[(1, '低'), (3, '中'), (5, '高'), (7, '最高')], db_index=True, default=3, verbose_name='任务优先级')),
                 ('update_date', models.DateField(null=True, verbose_name='最近处理时间')),
                 ('count', models.IntegerField(default=10, verbose_name='任务字块数')),
-                ('rect_set', jsonfield.fields.JSONField(default=list, verbose_name='字块补丁集')),
+                ('rect_set', fields.JSONField(default=list, verbose_name='字块补丁集')),
                 ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='review_tasks', to='jwt_auth.Staff')),
             ],
             options={

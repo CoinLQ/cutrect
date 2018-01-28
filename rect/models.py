@@ -13,7 +13,7 @@ from functools import wraps, reduce
 import json
 import urllib.request
 import collections
-from jsonfield import JSONField
+from .lib.fields import JSONField
 from django.db import connection, transaction
 from django.db.models import Sum, Case, When, Value, Count, Avg, F
 from django_bulk_update.manager import BulkUpdateManager
@@ -355,6 +355,11 @@ class Page(models.Model):
                 self.status = PageStatus.RECT_COL_NOTREADY
                 self.json = json_data['col_data']
                 self.save()
+            else:
+                print('内部数据格式有误，暂时存下来，这个过患很可能会有错数据进入。')
+                self.status = PageStatus.RECT_COL_NOTREADY
+                self.json = json_data['col_data']
+                self.save()
         except:
             print(self.pid + ": col parse failed")
             print("CONTENT:" + body)
@@ -613,6 +618,10 @@ class Rect(models.Model):
                 setattr(rect, key, _dict[key])
         rect.updated_at = localtime(now())
         rect.cid = rect.rect_sn
+        ### 这里由于外部数据格式不规范，对char作为汉字的情况追加的。
+        if _dict['char']:
+            rect.ch = _dict['char']
+
         rect = Rect.normalize(rect)
         return rect
 
