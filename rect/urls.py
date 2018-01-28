@@ -6,7 +6,6 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.views.generic import TemplateView
 from django.views.static import serve #处理静态文件
-from rect.views import CreateScheduleView, UploadBatchView
 
 import xadmin
 # xadmin.autodiscover()
@@ -19,9 +18,6 @@ xversion.register_models()
 
 
 urlpatterns = [
-
-    url(r'^create_schedule', CreateScheduleView.as_view(), name='create_schedule'),
-    url(r'^upload_batch', UploadBatchView.as_view(), name='upload_batch')
 ]
 
 
