@@ -92,13 +92,13 @@ class CCTaskViewSet(RectBulkOpMixin,
                             "task_id": pk })
 
 
-    @detail_route(methods=['post'], url_path='abandon')
-    def abandon(self, request, pk):
+    @detail_route(methods=['post'], url_path='emergen')
+    def emergen(self, request, pk):
         task = CCTask.objects.get(pk=pk)
         if (task.owner != request.user):
             return Response({"status": -1,
                              "msg": "No Permission!"})
-        task.abandon()
+        task.emergen()
         return Response({
             "status": 0,
             "task_id": pk
@@ -143,13 +143,13 @@ class ClassifyTaskViewSet(RectBulkOpMixin,
 
 
 
-    @detail_route(methods=['post'], url_path='abandon')
-    def abandon(self, request, pk):
+    @detail_route(methods=['post'], url_path='emergen')
+    def emergen(self, request, pk):
         task = ClassifyTask.objects.get(pk=pk)
         if (task.owner != request.user):
             return Response({"status": -1,
                              "msg": "No Permission!"})
-        task.abandon()
+        task.emergen()
         return Response({
             "status": 0,
             "task_id": pk
@@ -194,13 +194,13 @@ class PageTaskViewSet(RectBulkOpMixin,
                         "task_id": task.pk})
 
 
-    @detail_route(methods=['post'], url_path='abandon')
-    def abandon(self, request, pk):
+    @detail_route(methods=['post'], url_path='emergen')
+    def emergen(self, request, pk):
         task = PageTask.objects.get(pk=pk)
         if (task.owner != request.user):
             return Response({"status": -1,
                              "msg": "No Permission!"})
-        task.abandon()
+        task.emergen()
         return Response({
             "status": 0,
             "task_id": pk
@@ -249,13 +249,13 @@ class DelTaskViewSet(RectBulkOpMixin,
         return Response({"status": 0, "task_id": pk })
 
 
-    @detail_route(methods=['post'], url_path='abandon')
-    def abandon(self, request, pk):
+    @detail_route(methods=['post'], url_path='emergen')
+    def emergen(self, request, pk):
         task = DelTask.objects.get(pk=pk)
         if (task.owner == request.user):
             return Response({"status": -1,
                              "msg": "Action Denied!"})
-        task.abandon()
+        task.emergen()
         return Response({
             "status": 0,
             "task_id": pk

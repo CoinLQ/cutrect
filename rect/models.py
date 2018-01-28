@@ -18,10 +18,12 @@ from django.db import connection, transaction
 from django.db.models import Sum, Case, When, Value, Count, Avg, F
 from django_bulk_update.manager import BulkUpdateManager
 from .lib.arrange_rect import ArrangeRect
+from django.core.exceptions import ValidationError
 from dotmap import DotMap
 from PIL import Image, ImageFont, ImageDraw
 from io import BytesIO
 import os, sys
+import re
 
 def iterable(cls):
     """
@@ -117,18 +119,21 @@ class PageStatus:
         (MARKED, u'已入卷标记'),
     )
 class TaskStatus:
-    NOT_READY = 10
-    NOT_GOT = 0
-    EXPIRED = 1
-    ABANDON = 2
-    HANDLING = 4
-    COMPLETED = 5
-    DISCARD = 6
+    NOT_READY = 0
+    NOT_GOT = 1
+    EXPIRED = 2
+    ABANDON = 3
+    EMERGENCY = 4
+    HANDLING = 5
+    COMPLETED = 7
+    DISCARD = 9
 
     CHOICES = (
+        (NOT_READY, u'未就绪'),
         (NOT_GOT, u'未领取'),
         (EXPIRED, u'已过期'),
         (ABANDON, u'已放弃'),
+        (EMERGENCY, u'加急'),
         (HANDLING, u'处理中'),
         (COMPLETED, u'已完成'),
         (DISCARD, u'已作废'),
@@ -281,7 +286,7 @@ class Reel(models.Model):
 
     @property
     def reel_sn(self):
-        return "%sr%s" % (self.sutra_id, self.reel_no.zfill(3))
+        return "%sr%03d" % (self.sutra_id, self.reel_no)
 
     @property
     def name(self):
@@ -318,9 +323,20 @@ class Page(models.Model):
         reader = opener.open(self.get_real_path())
         return Image.open(BytesIO(reader.read()))
 
+
     def get_real_path(self):
-        # FIXME: 暂时这么写可以，写死了，GEO CDN就失效了。
-        return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%s/%s.jpg' % (pid[0:2], pid[2:8], pid[8:12], pid)
+        PAGE_VOLUME_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>\d{6})v(?P<vol_no>\d{3})p(?P<page_no>\d{5})'
+        PAGE_REEL_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>\d{6})r(?P<reel_no>\d{3})p(?P<page_no>\d{5})'
+        ret = re.compile(PAGE_VOLUME_RE).match(self.pid)
+        if (ret):
+            result = ret.groupdict()
+            return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%sv%sp%s.jpg' % (result['tp_no'], result['vol_no'], result['tp_no'], result['vol_no'], result['page_no'])
+        ret = re.compile(PAGE_REEL_RE).match(self.pid)
+        if (ret):
+            result = ret.groupdict()
+            return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%s/%s.jpg' % (result['tp_no'], result['sutra_no'], result['reel_no'], self.pid)
+
+        return ''
 
     def down_col_pos(self):
         cut_file = self.get_real_path()[0:-3] + "col"
@@ -379,7 +395,17 @@ class Page(models.Model):
 
     @property
     def page_sn(self):
-        return "%sv%sp%04d%s" % (self.reel_id[0:-4], self.vol_no.zfill(3), self.page_no, self.bar_no)
+        if (self.vol_no == 0):
+            return "%sr%03dp%04d%s" % (self.reel_id[0:-4], self.reel_no, self.reel_page_no, self.bar_no)
+        else:
+            return "%sv%03dp%04d%s" % (self.reel_id[0:-4], self.vol_no, self.page_no, self.bar_no)
+
+    def save(self, *args, **kwargs):
+        if (self.vol_no == 0 and (self.reel_no == 0 or self.reel_page_no == 0)):
+            raise ValidationError('When vol_no is 0, reel_no and reel_page_no need be set.')
+        if (self.reel_no == 0 and (self.vol_no == 0 or self.page_no == 0)):
+            raise ValidationError('When reel_no is 0, vol_no and page_no need be set.')
+        super(Page, self).save(*args, **kwargs)
 
     class Meta:
         verbose_name = '实体藏经页'
@@ -531,8 +557,21 @@ class Rect(models.Model):
         return self.ch
 
     def column_uri(self):
+        COL_VOLUME_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>\d{6})v(?P<vol_no>\d{3})p(?P<column_no>\d{7})'
+        COL_REEL_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>\d{6})r(?P<reel_no>\d{3})p(?P<column_no>\d{7})'
         col_id = self.column_set['col_id']
-        return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%s/%s.jpg' % (col_id[0:2], col_id[2:8], col_id[8:12], col_id)
+        if not col_id:
+            return ''
+        ret = re.compile(COL_VOLUME_RE).match(col_id)
+        if (ret):
+            result = ret.groupdict()
+            return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%sv%sp%s.jpg' % (result['tp_no'], result['vol_no'], result['tp_no'], result['vol_no'], result['column_no'])
+        ret = re.compile(COL_REEL_RE).match(col_id)
+        if (ret):
+            result = ret.groupdict()
+            return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%s/%s.jpg' % (result['tp_no'], result['sutra_no'], result['reel_no'], col_id)
+
+        return ''
 
     @staticmethod
     def canonicalise_uuid(uuid):
@@ -796,7 +835,7 @@ class Task(models.Model):
         db_index=True,
     )
     update_date = models.DateField(null=True, verbose_name=u'最近处理时间')
-
+    obtain_date = models.DateField(null=True, verbose_name=u'领取时间')
     def __str__(self):
         return self.number
 
@@ -831,13 +870,14 @@ class Task(models.Model):
 
     @activity_log
     def done(self):
+        self.update_date = localtime(now()).date()
         self.tasks_increment()
         self.status = TaskStatus.COMPLETED
         return self.save(update_fields=["status"])
 
     @activity_log
-    def abandon(self):
-        self.status = TaskStatus.ABANDON
+    def emergen(self):
+        self.status = TaskStatus.EMERGENCY
         return self.save(update_fields=["status"])
 
     @activity_log
@@ -847,7 +887,7 @@ class Task(models.Model):
 
     @activity_log
     def obtain(self, user):
-        self.update_date = localtime(now()).date()
+        self.obtain_date = localtime(now()).date()
         self.status = TaskStatus.HANDLING
         self.owner = user
         self.save()

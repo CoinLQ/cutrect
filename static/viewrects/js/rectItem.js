@@ -36,11 +36,15 @@ Vue.component('rectitem', {
                 this.image.src = this.getImageUrl(columnSet.col_id);
             }
         },
-        //https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/GZ/000790/v030/GZ000790v030p0010005.jpg
         getImageUrl: function (column_code) {
-            const regex = /^([A-Z]+)(\d+)(v\d+)(p\d+)\w*/;
+            const regex = /^([A-Z]+)(\d+)v(\d+)(p\d+)\w*/;
+            const reel_regex = /^([A-Z]+)(\d+)r(\d+)(p\d+)\w*/;
             if(regex.test(column_code)){
                 var re = regex.exec(column_code);
+                return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/"+re[1]+"/"+re[3]+"/"+re[1]+ "v" +re[3] + re[4] +".jpg";
+            }
+            if(reel_regex.test(column_code)){
+                var re = reel_regex.exec(column_code);
                 return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/"+re[1]+"/"+re[2]+"/"+re[3]+"/"+column_code+".jpg";
             }
             //说明column_code不匹配规则, 默认显示加载中...todo 后续改加载失败的图片.
