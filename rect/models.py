@@ -350,13 +350,7 @@ class Page(models.Model):
         try:
             body = response.read().decode('utf8')
             json_data = json.loads(body)
-            if json_data['page_code'] == self.pid and json_data['reel_no'] == self.reel_id \
-                and type(json_data['col_data'])==list :
-                self.status = PageStatus.RECT_COL_NOTREADY
-                self.json = json_data['col_data']
-                self.save()
-            else:
-                print('内部数据格式有误，暂时存下来，这个过患很可能会有错数据进入。')
+            if type(json_data['col_data'])==list :
                 self.status = PageStatus.RECT_COL_NOTREADY
                 self.json = json_data['col_data']
                 self.save()
@@ -562,7 +556,7 @@ class Rect(models.Model):
         return self.ch
 
     def column_uri(self):
-        COL_VOLUME_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>\d{6})v(?P<vol_no>\d{3})p(?P<column_no>\d{7})'
+        COL_VOLUME_RE = r'(?P<tp_no>[A-Z]{2})v(?P<vol_no>\d{3})p(?P<column_no>\d{7})'
         COL_REEL_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>\d{6})r(?P<reel_no>\d{3})p(?P<column_no>\d{7})'
         col_id = self.column_set['col_id']
         if not col_id:
@@ -597,7 +591,10 @@ class Rect(models.Model):
 
     @property
     def cncode(self):
-        return "%s%02d" % (self.page_code, self.line_no)
+        if "r" in self.page_code:
+            return "%s%02d" % (self.page_code, self.line_no)
+        else:
+            return "%sv%sp%s%s" % (self.page_code[0:2], self.page_code[9:12], self.page_code[13:18])
 
     @staticmethod
     def generate(rect_dict={}, exist_rects=[]):
