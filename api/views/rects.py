@@ -15,6 +15,9 @@ from rest_framework.response import Response
 from rest_framework.decorators import detail_route
 from django.shortcuts import get_object_or_404
 import re
+from rect.lib import get_ocr_text
+import urllib
+from base64 import b64encode
 
 class PageViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Page.objects.all()
@@ -132,7 +135,7 @@ class RectViewSet(viewsets.ReadOnlyModelViewSet, mixins.ListModelMixin):
         rect = get_object_or_404(Rect, cid=pk)
         col_id = rect.cid[:-3]
         pattern = re.compile(r'{}'.format(col_id))
-        
+
         col_rects = list(filter(lambda x: pattern.search(x.cid) and pk != x.cid, Rect.objects.filter(page_code=rect.page_code).all()))
         rects = RectSerializer(data=col_rects, many=True)
         rects.is_valid()
@@ -140,7 +143,46 @@ class RectViewSet(viewsets.ReadOnlyModelViewSet, mixins.ListModelMixin):
                 "rects": rects.data,
                 "cid": pk})
 
+
+
+    @list_route(methods=['post'], url_path='add_ocr_tab')
+    def add_ocr_tab(self, request):
+
+        class DefaultDict(dict):
+            def __missing__(self, key):
+                return None
+        requestJson = DefaultDict(request.data)
+        imgBase64 = requestJson['img_data']
+        picPath = requestJson['img_url']
+        _id = requestJson['id']
+
+        if imgBase64:
+            respData = get_ocr_text.testAPI(imgBase64)
+            jsonData = {'status': respData['code'], 'msg': respData['message'],
+                        'id': _id, 'rects': get_ocr_text.jsonToNewJson(respData)}
+        elif picPath:
+            image = urllib.request.urlopen(picPath).read()
+            respData = get_ocr_text.testAPI(b64encode(image))
+            if 'code' in respData:
+                status = respData['code']
+                if int(status) == 0:
+                    status = 200 + abs(status)
+                elif int(status) < 0:
+                    status = 400 + abs(status)
+                else:
+                    status = 500 + abs(status)
+            else:
+                status = 404
+
+            rects = get_ocr_text.jsonToNewJson(respData)
+
+            jsonData = {'status': status, 'id': _id, 'msg': respData['message'], 'rects': rects}
+        else:
+            jsonData = {'status': -1, 'msg': 'parameters error!'}
+
+        return Response(jsonData)
+
+
 class ScheduleViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
-
