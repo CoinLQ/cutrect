@@ -16,17 +16,24 @@ class Command(BaseCommand):
             LQSutra(code=n.code, name=n.name, total_reels=n.total_reels).save()
 
         for s in Sutra2.objects.filter(pk__gte=3348):
-            Sutra(tripitaka_id=s.tripitaka_id, code=s.code, variant_code=s.variant_code, name=s.name, lqsutra_id=s.lqsutra_id, total_reels=s.total_reels).save()
+            if (s.tripitaka_id=='GZ'):
+                s.tripitaka_id='GL'
 
+            sutra = Sutra(tripitaka_id=s.tripitaka_id, code=s.code, variant_code=s.variant_code, name=s.name, lqsutra_id=s.lqsutra_id, total_reels=s.total_reels)
+            if not Sutra.objects.filter(sid=sutra.sutra_sn).first():
+                sutra.save()
 
         for r in Reel2.objects.filter(sutra_id__in=[3348,3349,3350,3351,3352,3353,3355,3356]):
-            Reel(sutra_id=r.sutra.sid, reel_no=str(r.code)).save()
+            reel = Reel(sutra_id=r.sutra.sid, reel_no=int(r.code))
+            if not Reel.objects.filter(rid=reel.reel_sn).first():
+                reel.save()
+
         s = Sutra2.objects.get(pk=3354)
         for n in range(1,46):
-            Reel(sutra_id=s.sid, reel_no=str(n)).save()
+            Reel(sutra_id=s.sid, reel_no=n).save()
         for sutra in Sutra.objects.all():
             for p in Page2.objects.filter(code__regex='^'+sutra.sid).select_related('reel'):
                 try:
-                    Page(reel_id=p.reel.reel_sn, vol_no=str(p.v_no), page_no=int(p.v_page_no)).save()
+                    Page(reel_id=p.reel.reel_sn, vol_no=int(p.v_no), page_no=int(p.v_page_no)).save()
                 except Exception as e:
                     pass
