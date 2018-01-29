@@ -10,6 +10,8 @@ from django.dispatch import receiver
 from jwt_auth.models import Staff
 from django.utils.timezone import localtime, now
 from functools import wraps, reduce
+from django.db.models import Min, Sum
+from django.db import connection, transaction
 import json
 import urllib.request
 import collections
@@ -18,12 +20,16 @@ from django.db import connection, transaction
 from django.db.models import Sum, Case, When, Value, Count, Avg, F
 from django_bulk_update.manager import BulkUpdateManager
 from .lib.arrange_rect import ArrangeRect
+from django.forms.models import model_to_dict
 from django.core.exceptions import ValidationError
 from dotmap import DotMap
 from PIL import Image, ImageFont, ImageDraw
 from io import BytesIO
+from celery import shared_task
+from cutrect import email_if_fails
 import os, sys
 import re
+
 
 def iterable(cls):
     """
@@ -179,6 +185,49 @@ class ReviewResult(object):
         (DISAGREE, u'未同意'),
         (IGNORED, u'被略过'),
     )
+
+class ModelDiffMixin(object):
+    """
+    A model mixin that tracks model fields' values and provide some useful api
+    to know what fields have been changed.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(ModelDiffMixin, self).__init__(*args, **kwargs)
+        self.__initial = self._dict
+
+    @property
+    def diff(self):
+        d1 = self.__initial
+        d2 = self._dict
+        diffs = [(k, (v, d2[k])) for k, v in d1.items() if v != d2[k]]
+        return dict(diffs)
+
+    @property
+    def has_changed(self):
+        return bool(self.diff)
+
+    @property
+    def changed_fields(self):
+        return self.diff.keys()
+
+    def get_field_diff(self, field_name):
+        """
+        Returns a diff for field if it's changed and None otherwise.
+        """
+        return self.diff.get(field_name, None)
+
+    def save(self, *args, **kwargs):
+        """
+        Saves model and set initial state.
+        """
+        super(ModelDiffMixin, self).save(*args, **kwargs)
+        self.__initial = self._dict
+
+    @property
+    def _dict(self):
+        return model_to_dict(self, fields=[field.name for field in
+                             self._meta.fields])
 
 
 class TripiMixin(object):
@@ -715,7 +764,7 @@ class Patch(models.Model):
         ordering = ("ch",)
 
 
-class Schedule(models.Model):
+class Schedule(models.Model, ModelDiffMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     reels = models.ManyToManyField(Reel, limit_choices_to={'ready': True}, blank=True )
     name = models.CharField(verbose_name='计划名称', max_length=64)
@@ -814,6 +863,51 @@ class Reel_Task_Statistical(models.Model):
         verbose_name_plural = u"实体卷任务统计管理"
         ordering = ('schedule', '-updated_at')
 
+    @shared_task
+    @email_if_fails
+    def gen_pptask_by_plan():
+        with transaction.atomic():
+            for stask in Schedule_Task_Statistical.objects.filter(amount_of_pptasks=-1):
+                # 逐卷创建任务
+                for rtask in Reel_Task_Statistical.objects.filter(schedule=stask.schedule).prefetch_related('reel'):
+                    if rtask.amount_of_pptasks != -1:
+                        continue
+                    count = allocateTasks(stask.schedule, rtask.reel, SliceType.PPAGE)
+                    rtask.amount_of_pptasks = count
+                    rtask.save(update_fields=['amount_of_pptasks'])
+                # 检查每卷大于-1，开启总计划，更新任务数。
+                quertset = Reel_Task_Statistical.objects.filter(schedule=stask.schedule)
+                result = quertset.aggregate(Min('amount_of_pptasks'))
+                # 只有所有卷都开启任务，计划表的总任务数才更新。
+                if result['amount_of_pptasks__min'] != -1:
+                    count = quertset.aggregate(Sum('amount_of_pptasks'))['amount_of_pptasks__sum']
+                    stask.amount_of_pptasks = count
+                    stask.save(update_fields=['amount_of_pptasks'])
+
+
+    @shared_task
+    @email_if_fails
+    def gen_cctask_by_plan():
+        with transaction.atomic():
+            for stask in Schedule_Task_Statistical.objects.filter(amount_of_cctasks=-1):
+                # 未激活说明，第一步的CC阈值没有填写
+                if stask.schedule.status == ScheduleStatus.NOT_ACTIVE:
+                    continue
+                # 逐卷创建任务
+                for rtask in Reel_Task_Statistical.objects.filter(schedule=stask.schedule).prefetch_related('reel'):
+                    if rtask.amount_of_cctasks != -1:
+                        continue
+                    count = allocateTasks(stask.schedule, rtask.reel, SliceType.CC)
+                    rtask.amount_of_cctasks = count
+                    rtask.save(update_fields=['amount_of_cctasks'])
+                # 检查每卷大于-1，开启总计划，更新任务数。
+                quertset = Reel_Task_Statistical.objects.filter(schedule=stask.schedule)
+                result = quertset.aggregate(Min('amount_of_cctasks'))
+                # 只有所有卷都开启任务，计划表的总任务数才更新。
+                if result['amount_of_cctasks__min'] != -1:
+                    count = quertset.aggregate(Sum('amount_of_cctasks'))['amount_of_cctasks__sum']
+                    stask.amount_of_cctasks = count
+                    stask.save(update_fields=['amount_of_cctasks'])
 
 class Task(models.Model):
     '''
@@ -1060,9 +1154,11 @@ class CharClassifyPlan(models.Model):
         verbose_name = u"聚类准备表"
         verbose_name_plural = u"聚类准备表管理"
 
-    @classmethod
-    def create_charplan(cls, schedule):
-        cls.objects.filter(schedule=schedule).all().delete()
+    @shared_task
+    @email_if_fails
+    def create_charplan(schedule_id):
+        schedule = Schedule.objects.get(pk=schedule_id)
+        CharClassifyPlan.objects.filter(schedule=schedule).all().delete()
         cursor = connection.cursor()
         raw_sql = '''
         SET SEARCH_PATH TO public;
@@ -1077,7 +1173,7 @@ class CharClassifyPlan(models.Model):
         group by ch
         ''' % (schedule.id, '\',\''.join(schedule.reels.values_list('rid', flat=True)))
         cursor.execute(raw_sql)
-        cls.objects.filter(schedule=schedule, total_cnt__lt=10).all().delete()
+        CharClassifyPlan.objects.filter(schedule=schedule, total_cnt__lt=10).all().delete()
 
 
     def measure_charplan(self, wcc_threshold):
@@ -1092,14 +1188,236 @@ class CharClassifyPlan(models.Model):
         self.save()
 
 
+class AllocateTask(object):
+    class Config:
+        CCTASK_COUNT = 20
+        DEFAULT_COUNT = 20
+        BULK_TASK_COUNT = 30
+        PAGETASK_COUNT = 1
+
+    def __init__(self, schedule, reel = None):
+        self.schedule = schedule
+        self.reel = reel
+
+    def allocate(self):
+        pass
+
+    def task_id(self):
+        cursor = connection.cursor()
+        cursor.execute("select nextval('task_seq')")
+        result = cursor.fetchone()
+        return result[0]
+
+class CCAllocateTask(AllocateTask):
+    def allocate(self):
+        reel = self.reel
+        query_set = reel.rects.filter(cc__lte=self.schedule.cc_threshold)
+        count = AllocateTask.Config.CCTASK_COUNT
+        rect_set = []
+        task_set = []
+        total_tasks = 0
+        for no, rect in enumerate(query_set, start=1):
+            # rect_set.append(rect.id.hex)
+            rect_set.append(rect.serialize_set)
+            if len(rect_set) == count:
+                # 268,435,455可容纳一部大藏经17，280，000个字
+                task_no = "%s_%s%05X" % (self.schedule.schedule_no, reel.rid, self.task_id())
+                task = CCTask(number=task_no, schedule=self.schedule, ttype=SliceType.CC, count=count, status=TaskStatus.NOT_GOT,
+                              rect_set=list(rect_set), cc_threshold=rect.cc)
+                rect_set.clear()
+                task_set.append(task)
+                if len(task_set) == AllocateTask.Config.BULK_TASK_COUNT:
+                    CCTask.objects.bulk_create(task_set)
+                    total_tasks += len(task_set)
+                    task_set.clear()
+        if len(rect_set) > 0:
+            task_no = "%s_%s%05X" % (self.schedule.schedule_no, reel.rid, self.task_id())
+            task = CCTask(number=task_no, schedule=self.schedule, ttype=SliceType.CC, count=count, status=TaskStatus.NOT_GOT,
+                            rect_set=list(rect_set), cc_threshold=rect.cc)
+            rect_set.clear()
+            task_set.append(task)
+        CCTask.objects.bulk_create(task_set)
+        total_tasks += len(task_set)
+        return total_tasks
+
+def batch(iterable, n = 1):
+    current_batch = []
+    for item in iterable:
+        current_batch.append(item)
+        if len(current_batch) == n:
+            yield current_batch
+            current_batch = []
+    if current_batch:
+        yield current_batch
+
+
+class ClassifyAllocateTask(AllocateTask):
+
+    def allocate(self):
+        rect_set = []
+        word_set = {}
+        task_set = []
+        count = AllocateTask.Config.DEFAULT_COUNT
+        reel_ids = self.schedule.reels.values_list('rid', flat=True)
+        base_queryset = Rect.objects.filter(reel_id__in=reel_ids)
+        total_tasks = 0
+        # 首先找出这些计划准备表
+        for plans in batch(CharClassifyPlan.objects.filter(schedule=self.schedule), 3):
+            # 然后把分组的计划变成，不同分片的queryset组拼接
+            questsets = [base_queryset.filter(ch=_plan.ch, wcc__lte=_plan.wcc_threshold) for _plan in plans]
+            if len(questsets) > 1:
+                queryset = questsets[0].union(*questsets[1:])
+            else:
+                queryset = questsets[0]
+            # 每组去递归补足每queryset下不足20单位的情况
+            for no, rect in enumerate(queryset, start=1):
+                rect_set.append(rect.serialize_set)
+                word_set[rect.ch] = 1
+
+                if len(rect_set) == count:
+                    task_no = "%s_%07X" % (self.schedule.schedule_no, self.task_id())
+                    task = ClassifyTask(number=task_no, schedule=self.schedule, ttype=SliceType.CLASSIFY, count=count,
+                                        status=TaskStatus.NOT_GOT,
+                                        rect_set=list(rect_set),
+                                        char_set=ClassifyTask.serialize_set(word_set.keys()))
+                    rect_set.clear()
+                    word_set = {}
+                    task_set.append(task)
+                    if len(task_set) == AllocateTask.Config.BULK_TASK_COUNT:
+                        ClassifyTask.objects.bulk_create(task_set)
+                        total_tasks += len(task_set)
+                        task_set.clear()
+        if len(rect_set) > 0:
+            task_no = "%s_%07X" % (self.schedule.schedule_no, self.task_id())
+            task = ClassifyTask(number=task_no, schedule=self.schedule, ttype=SliceType.CLASSIFY, count=count,
+                                status=TaskStatus.NOT_GOT,
+                                rect_set=list(rect_set),
+                                char_set=ClassifyTask.serialize_set(word_set.keys()))
+            rect_set.clear()
+            task_set.append(task)
+        ClassifyTask.objects.bulk_create(task_set)
+        total_tasks += len(task_set)
+        return total_tasks
+
+
+class PerpageAllocateTask(AllocateTask):
+
+    def allocate(self):
+        reel = self.reel
+        query_set = filter(lambda x: x.primary, PageRect.objects.filter(reel=reel))
+
+        page_set = []
+        task_set = []
+        count = AllocateTask.Config.PAGETASK_COUNT
+        total_tasks = 0
+        for no, pagerect in enumerate(query_set, start=1):
+            page_set.append(pagerect.serialize_set)
+            if len(page_set) == count:
+                task_no = "%s_%s%05X" % (self.schedule.schedule_no, reel.rid, self.task_id())
+                task = PageTask(number=task_no, schedule=self.schedule, ttype=SliceType.PPAGE, count=1,
+                                  status=TaskStatus.NOT_READY,
+                                  page_set=list(page_set))
+                page_set.clear()
+                task_set.append(task)
+                if len(task_set) == AllocateTask.Config.BULK_TASK_COUNT:
+                    PageTask.objects.bulk_create(task_set)
+                    total_tasks += len(task_set)
+                    task_set.clear()
+
+        PageTask.objects.bulk_create(task_set)
+        total_tasks += len(task_set)
+        return total_tasks
+
+
+class AbsentpageAllocateTask(AllocateTask):
+
+    def allocate(self):
+        reel = self.reel
+        # TODO: 缺少缺页查找页面
+        queryset = PageRect.objects.filter(reel=reel)
+        query_set = filter(lambda x: x.primary, queryset)
+
+        page_set = []
+        task_set = []
+        count = AllocateTask.Config.PAGETASK_COUNT
+        total_tasks = 0
+        for no, pagerect in enumerate(query_set, start=1):
+            page_set.append(pagerect.serialize_set)
+            if len(page_set) == count:
+                task_no = "%s_%s%05X" % (self.schedule.schedule_no, reel.rid, self.task_id())
+                task = AbsentTask(number=task_no, schedule=self.schedule, ttype=SliceType.CHECK, count=1,
+                                page_set=list(page_set))
+                page_set.clear()
+                task_set.append(task)
+                if len(task_set) == AllocateTask.Config.BULK_TASK_COUNT:
+                    PageTask.objects.bulk_create(task_set)
+                    total_tasks += len(task_set)
+                    task_set.clear()
+
+        PageTask.objects.bulk_create(task_set)
+        total_tasks += len(task_set)
+        return total_tasks
+
+
+class DelAllocateTask(AllocateTask):
+
+    def allocate(self):
+        rect_set = []
+        task_set = []
+        count = AllocateTask.Config.PAGETASK_COUNT
+        total_tasks = 0
+        for items in batch(DeletionCheckItem.objects.filter(del_task_id=None), 10):
+            if len(items) == 10:
+                rect_set = list(map(lambda x:x.pk.hex, items))
+                task_no = "%s_%07X" % ('DelTask', self.task_id())
+                task = DelTask(number=task_no,  ttype=SliceType.VDEL,
+                                rect_set=rect_set)
+                rect_set.clear()
+                ids = [_item.pk for _item in items]
+                DeletionCheckItem.objects.filter(id__in=ids).update(del_task_id=task_no)
+                task_set.append(task)
+                if len(task_set) == AllocateTask.Config.BULK_TASK_COUNT:
+                    DelTask.objects.bulk_create(task_set)
+                    total_tasks += len(task_set)
+                    task_set.clear()
+        DelTask.objects.bulk_create(task_set)
+        total_tasks += len(task_set)
+        task_set.clear()
+        return total_tasks
+
+def allocateTasks(schedule, reel, type):
+    allocator = None
+    count = -1
+    if type == SliceType.CC: # 置信度
+        allocator = CCAllocateTask(schedule, reel)
+    elif type == SliceType.CLASSIFY: # 聚类
+        allocator = ClassifyAllocateTask(schedule)
+    elif type == SliceType.PPAGE: # 逐字
+        allocator = PerpageAllocateTask(schedule, reel)
+    elif type == SliceType.CHECK: # 查漏
+        allocator = PerpageAllocateTask(schedule, reel)
+    elif type == SliceType.VDEL: # 删框
+        allocator = DelAllocateTask(schedule, reel)
+    if allocator:
+        count = allocator.allocate()
+    return count
+
 
 
 @receiver(post_save, sender=Schedule)
 def post_schedule_create_pretables(sender, instance, created, **kwargs):
     if created:
         Schedule_Task_Statistical(schedule=instance).save()
-        instance.create_reels_task()
-        CharClassifyPlan.create_charplan(instance)
+        # Schedule刚被创建，就建立聚类字符准备表，创建逐字校对的任务，任务为未就绪状态
+        CharClassifyPlan.create_charplan.s(instance.pk.hex).apply_async(countdown=20)
+        Reel_Task_Statistical.gen_pptask_by_plan.apply_async(countdown=60)
+    else:
+        # update
+        if (instance.has_changed) and ( 'status' in instance.changed_fields):
+            before, now = instance.get_field_diff('status')
+            if now == ScheduleStatus.ACTIVE and before == ScheduleStatus.NOT_ACTIVE:
+                # Schedule被激活，创建置信校对的任务
+                Reel_Task_Statistical.gen_cctask_by_plan.delay()
 
 # class AccessRecord(models.Model):
 #     date = models.DateField()
