@@ -249,11 +249,13 @@ def _install_dependencies():
         "supervisor",
         "postgresql-10",
         "redis-server",
+        "postgresql-server-dev-10",
         "nginx",
         "autopostgresqlbackup",
         "bsdtar",
-        "ibcurl4-openssl-dev",
-        "libssl-dev"
+        "libffi-dev",
+        "libcurl4-openssl-dev",
+        "libssl-dev",
     ]
     sudo("apt-get -y install %s" % " ".join(packages))
     if "additional_packages" in env and env.additional_packages:

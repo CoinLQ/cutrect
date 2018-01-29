@@ -27,7 +27,7 @@ celery==4.1.0
 
 django-celery-results==1.0.1
 SQLAlchemy==1.1.15
-jwt_auth==0.2.9
+jwt_auth==0.3.0
 psycopg2==2.7.3
 django-jsonfield==1.0.1
 django-bulk-update==2.2.0

@@ -48,6 +48,7 @@ def _install_requirements():
     if 'requirements_file' in env and env.requirements_file:
         sudo('chown -R %s /opt/django' % env.login_user)
         sudo('apt-get install -y libtiff5-dev libjpeg8-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev')
+        virtenvrun('pip install cffi')
         virtenvrun('pip install -r %s' % env.requirements_file)
 
 def _install_gunicorn():
@@ -178,7 +179,6 @@ def _prepare_django_app_path():
 
 def _update_logpremission_script():
     ''' upload rungunicorn conf '''
-    sudo('chmod +x %s' % env.rungunicorn_script)
     sudo('mkdir -p /opt/django/logs/%s' % env.project)
     sudo('touch /opt/django/logs/%s/standard.log' % env.project)
     sudo('chmod -R 777 /opt/django/logs/%s' % env.project)
