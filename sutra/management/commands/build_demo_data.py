@@ -59,3 +59,4 @@ class Command(BaseCommand):
                 print("RECTSET EMPTY! PID:" + page.pid)
                 continue
             page_rect.rebuild_rect()
+        Reel.objects.all().update(ready = True)

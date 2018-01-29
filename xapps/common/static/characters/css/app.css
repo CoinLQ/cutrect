@@ -315,7 +315,7 @@ fieldset[disabled] .form-control-inline {
 }
 
 button.dropdown-toggle {
-  height: 28px;
+  height: 33px;
   line-height: 1;
 }
 
@@ -327,7 +327,7 @@ button.dropdown-toggle {
   padding: 2px 18px !important;
 }
 
-.btn, .btn:focus {
+#app .btn,#app .btn:focus {
   border-radius: 22px;
   outline:0;
 }
