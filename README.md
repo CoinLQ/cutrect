@@ -1,4 +1,4 @@
-# LQCharacter
+# cutrect
 
 [![python](https://img.shields.io/badge/python-3.5-blue.svg)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/Django-v1.11-orange.svg)](https://www.djangoproject.com/)
@@ -7,10 +7,10 @@
 [![license-BSD](https://img.shields.io/badge/license-BSD-green.svg)](LICENSE)
 
 
-切分与识别
+切字🍆
 
 ## 安装环境搭建
-基本思路是通过virtualenvwrapper在本地创建一个独立的env环境，用docker-compose来启用一些项目所需的容器服务，比如mysql，redis等等。并将端口映射到本地。
+基本思路是通过virtualenvwrapper在本地创建一个独立的env环境，
 
 ### 安装 python3
 略
@@ -30,26 +30,15 @@ mkvirtualenv character --python=python3
 ```
   workon character
   pip install -r requirements.txt
-  pip install https://github.com/CoinLQ/xadmin/archive/master.zip
-  pip install https://github.com/CoinLQ/db_file_storage/archive/master.zip
-```
-### 安装docker-compose
-略
-### 启动docker
-```
-docker-compose up -d
-```
-#### 在docker中执行
-```
-docker-compose run web_lqcharacter /usr/local/bin/python manage.py makemigrations //docker-compose 1.5.2 环境下
-docker-compose exec web_lqcharacter /usr/local/bin/python manage.py makemigrations
-docker-compose exec web_lqcharacter /usr/local/bin/python manage.py migrate
+
 ```
 ### 加载测试数据
+下载测试数据 all_data_fixtures.json
+链接:https://pan.baidu.com/s/1dGN0NQx  密码:tci2
+测试数据admin。 用户admin 密码admin123
 ```
-  python manage.py makemigrations
   python manage.py migrate
-  python manage.py loaddata ./fixtures/initial_data.json
+  python manage.py loaddata ./all_data_fixtures.json
 ```
 ### 应用环境设置(可能)
 把下列环境变量加入你的rc文件中，
@@ -64,11 +53,10 @@ export AWS_SECRET_KEY=<input>
 ```
 ### 本地测试
 ```
-cmd> python manage.py collectstatic --settings=lqcharacter.ci_settings
-conf> DJANGO_SETTINGS_MODULE=lqcharacter.ci_settings coverage run manage.py test
+cmd> python manage.py test
 ```
 ### Celery本地调试
 ```
-celery -A setting worker --loglevel=info
-celery -A setting beat -l debug
+celery -A cutrect worker --loglevel=info
+celery -A cutrect beat -l debug
 ```
