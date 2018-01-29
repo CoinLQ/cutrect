@@ -2,35 +2,34 @@ from cutrect import celery_app
 from celery import Celery
 from celery.schedules import crontab
 from django.conf import settings
+from rect.lib.gen_task import GenTask
 
+
+# FIXME: http://docs.celeryproject.org/en/latest/userguide/periodic-tasks.html
+# 目前的版本celery不工作，用admin配置的办法解决。
 @celery_app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    # Calls test('every_minute') every 60 seconds.
-    sender.add_periodic_task(60.0, every_minute.s(), name='add every minute')
-
     # Executes every day at 1:02 a.m.
     sender.add_periodic_task(
         crontab(hour='1', minute='02', day_of_week="*"),
         every_morning.s(), name='good morning')
 
-    # Calls test('world') every 300 seconds
-    sender.add_periodic_task(300.0, test.s('hello world.'), expires=10)
+    # Calls gen_vdeltask every 300 seconds
+    sender.add_periodic_task(300.0, every_5_minute.s('hello world.'), expires=10)
 
-
-@celery_app.task(bind=True)
-def debug_task(self):
-    print('Request: {0!r}'.format(self.request))
 
 @celery_app.task
 def every_morning():
-    from rect.tasks import clean_daily_page
-    clean_daily_page()
+    GenTask.clean_daily_emergeTask()
+    GenTask.gen_classifytask_by_plan()
     return 'good morning'
 
 @celery_app.task
-def every_minute():
-    return 'every_minute'
+def every_5_minute(arg):
+    GenTask.gen_vdeltask()
+    return 'ok'
 
 @celery_app.task
 def test(arg):
     print(arg)
+

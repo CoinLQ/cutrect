@@ -12,12 +12,12 @@ def get_sql(filename):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('rect', '0003_auto_20180109_2201'),
+        ('rect', '0001_initial'),
     ]
 
     operations = [
         migrations.RunSQL(
-            get_sql('bg_create_reel_statis.sql')
+            get_sql('triggers.sql'),
+            "DROP sequence if exists fn_task_seq"
         ),
-
     ]

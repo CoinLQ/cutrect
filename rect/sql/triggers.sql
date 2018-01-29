@@ -1,47 +1,30 @@
-CREATE or REPLACE FUNCTION fn_task_seq() RETURNS trigger AS $fn_task_seq$
-BEGIN NEW.number := 'TK'||to_char(now(),'YYYYMMDD')||lpad(nextval('task_seq')::char, 7, '0');
+DROP SEQUENCE IF EXISTS task_seq;
+CREATE SEQUENCE task_seq
+        INCREMENT 1
+        MINVALUE 1
+        MAXVALUE 999999
+        START 1
+        CACHE 1
+        CYCLE;
+CREATE SEQUENCE schedule_seq
+        INCREMENT 1
+        MINVALUE 1
+        MAXVALUE 999
+        START 1
+        CACHE 1
+        CYCLE;
+
+CREATE or REPLACE FUNCTION fn_schedule_seq() RETURNS trigger AS $fn_schedule_seq$
+BEGIN NEW.schedule_no := 'P'||to_char(now(),'YYYYMMDD')||lpad(nextval('schedule_seq')::char, 3, '0');
 RETURN NEW;
 END;
-$fn_task_seq$ LANGUAGE plpgsql;
+$fn_schedule_seq$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS cc_task_seq ON rect_cctask;
-CREATE TRIGGER cc_task_seq
-    BEFORE INSERT ON rect_cctask
+DROP TRIGGER IF EXISTS cc_schedule_seq ON rect_schedule;
+CREATE TRIGGER cc_schedule_seq
+    BEFORE INSERT ON rect_schedule
             FOR EACH ROW
-            EXECUTE PROCEDURE fn_task_seq();
-
-DROP TRIGGER IF EXISTS cs_task_seq ON rect_classifytask;
-CREATE TRIGGER cs_task_seq
-    BEFORE INSERT ON rect_classifytask
-            FOR EACH ROW
-            EXECUTE PROCEDURE fn_task_seq();
-
-DROP TRIGGER IF EXISTS rp_task_seq ON rect_pagetask;
-CREATE TRIGGER rp_task_seq
-    BEFORE INSERT ON rect_pagetask
-            FOR EACH ROW
-            EXECUTE PROCEDURE fn_task_seq();
-
-
-DROP TRIGGER IF EXISTS ab_task_seq ON rect_absenttask;
-CREATE TRIGGER ab_task_seq
-    BEFORE INSERT ON rect_absenttask
-            FOR EACH ROW
-            EXECUTE PROCEDURE fn_task_seq();
-
-
-DROP TRIGGER IF EXISTS dl_task_seq ON rect_deltask;
-CREATE TRIGGER dl_task_seq
-    BEFORE INSERT ON rect_deltask
-            FOR EACH ROW
-            EXECUTE PROCEDURE fn_task_seq();
-
-DROP TRIGGER IF EXISTS rv_task_seq ON rect_reviewtask;
-CREATE TRIGGER rv_task_seq
-    BEFORE INSERT ON rect_reviewtask
-            FOR EACH ROW
-            EXECUTE PROCEDURE fn_task_seq();
-
+            EXECUTE PROCEDURE fn_schedule_seq();
 
 CREATE or REPLACE FUNCTION fn_gen_sid() RETURNS trigger AS $fn_gen_sid$
 BEGIN NEW.sid := NEW.tripitaka_id||lpad(NEW.code, 5, '0')||NEW.variant_code;
@@ -56,7 +39,7 @@ CREATE TRIGGER fn_gen_sid
             EXECUTE PROCEDURE fn_gen_sid();
 
 CREATE or REPLACE FUNCTION fn_gen_rid() RETURNS trigger AS $fn_gen_rid$
-BEGIN NEW.rid := NEW.sutra_id||'r'|| lpad(NEW.reel_no, 3, '0');
+BEGIN NEW.rid := NEW.sutra_id||'r'|| to_char(NEW.reel_no,'FM000') ;
 RETURN NEW;
 END;
 $fn_gen_rid$ LANGUAGE plpgsql;
@@ -71,9 +54,12 @@ CREATE TRIGGER fn_gen_rid
 CREATE or REPLACE FUNCTION fn_gen_pid() RETURNS trigger AS $fn_gen_pid$
 BEGIN
 IF NEW.bar_no IS NULL THEN
-NEW.pid := LEFT(NEW.reel_id, 8)||'v'||lpad(NEW.vol_no, 3, '0')||'p'||to_char(NEW.page_no,'FM0000')||'0';
+NEW.bar_no := '0';
+END IF;
+IF NEW.vol_no = 0 OR NEW.vol_no IS NULL THEN
+NEW.pid := LEFT(NEW.reel_id, 8)||'r'||to_char(NEW.reel_no,'FM000')||'p'||to_char(NEW.reel_page_no,'FM0000')||NEW.bar_no;
 ELSE
-NEW.pid := LEFT(NEW.reel_id, 8)||'v'||lpad(NEW.vol_no, 3, '0')||'p'||to_char(NEW.page_no,'FM0000')||NEW.bar_no;
+NEW.pid := LEFT(NEW.reel_id, 8)||'v'||to_char(NEW.vol_no,'FM000')||'p'||to_char(NEW.page_no,'FM0000')||NEW.bar_no;
 END IF;
 RETURN NEW;
 END;
@@ -85,16 +71,16 @@ CREATE TRIGGER fn_gen_pid
             FOR EACH ROW
             EXECUTE PROCEDURE fn_gen_pid();
 
-
-CREATE or REPLACE FUNCTION fn_gen_cid() RETURNS trigger AS $fn_gen_cid$
+CREATE or REPLACE FUNCTION fn_create_reelstatis() RETURNS trigger AS $fn_create_reelstatis$
 BEGIN
-NEW.cid := NEW.page_code|| to_char(NEW.line_no, 'FM00')|| 'n' || to_char(NEW.char_no, 'FM00');
+INSERT INTO rect_reel_task_statistical (schedule_id, reel_id,amount_of_cctasks,completed_cctasks,amount_of_absenttasks,completed_absenttasks,amount_of_pptasks,completed_pptasks,updated_at)
+VALUES (NEW.schedule_id, NEW.reel_id,-1,0,-1,0,-1,0, now());
 RETURN NEW;
 END;
-$fn_gen_cid$ LANGUAGE plpgsql;
+$fn_create_reelstatis$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS fn_gen_cid ON rect_rect;
-CREATE TRIGGER fn_gen_cid
-    BEFORE INSERT OR UPDATE ON rect_rect
+DROP TRIGGER IF EXISTS fn_create_reelstatis ON rect_schedule_reels;
+CREATE TRIGGER fn_create_reelstatis
+    BEFORE INSERT ON rect_schedule_reels
             FOR EACH ROW
-            EXECUTE PROCEDURE fn_gen_cid();
+            EXECUTE PROCEDURE fn_create_reelstatis();

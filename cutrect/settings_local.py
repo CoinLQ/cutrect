@@ -31,22 +31,22 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
 }
 # 请按照你开发时本机的数据库名字，密码，端口填写
 DATABASES = {
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': 'cutrect_local',
-    #     'USER': 'lqzj',
-    #     'PASSWORD': 'lqdzjsql',
-    #     'HOST': '127.0.0.1',
-    #     'PORT': '5432',
-    # },
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'cutrect_local',
         'USER': 'lqzj',
         'PASSWORD': 'lqdzjsql',
-        'HOST': 'www.dzj3000.com',
+        'HOST': '127.0.0.1',
         'PORT': '5432',
     },
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.postgresql',
+    #     'NAME': 'cutrect_local',
+    #     'USER': 'lqzj',
+    #     'PASSWORD': 'lqdzjsql',
+    #     'HOST': 'www.dzj3000.com',
+    #     'PORT': '5432',
+    # },
     # 'sutra_db': {
     #     'ENGINE': 'django.db.backends.sqlite3',
     #     'NAME': os.path.join(BASE_DIR, 'sutra.sqlite3'),

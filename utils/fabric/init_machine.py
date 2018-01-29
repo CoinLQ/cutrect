@@ -232,6 +232,8 @@ def _install_nginx():
 
 def _install_dependencies():
     ''' Ensure those Debian/Ubuntu packages are installed '''
+    sudo("sed -i 's/http:\/\/.*ubuntu\.com/http:\/\/mirrors\.aliyun\.com/g' /etc/apt/sources.list")
+    sudo("apt-get update")
     sudo("apt-get install -y software-properties-common")
     sudo("add-apt-repository ppa:deadsnakes/ppa")
     sudo("add-apt-repository \"deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main\"")

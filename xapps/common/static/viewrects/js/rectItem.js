@@ -25,7 +25,7 @@ Vue.component('rectitem', {
     methods: {
         loadImage: function (rect) {
             if(rect){
-                var columnSet = eval("(" + rect.column_set+")");
+                let columnSet = rect.column_set;
                 if(!this.image){
                     this.image = new Image();
                     this.image.crossOrigin = "*";
@@ -36,11 +36,16 @@ Vue.component('rectitem', {
                 this.image.src = this.getImageUrl(columnSet.col_id);
             }
         },
-        //https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/GZ/000790/v030/GZ000790v030p0010005.jpg
         getImageUrl: function (column_code) {
-            const regex = /^([A-Z]+)(\d+)(v\d+)(p\d+)\w*/;
+            const regex = /^([A-Z]+)v(\d+)(p\d+)\w*/;
+            const reel_regex = /^([A-Z]+)(\d+)r(\d+)(p\d+)\w*/;
             if(regex.test(column_code)){
                 var re = regex.exec(column_code);
+                let new_formart = "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/"+re[1]+"/"+re[2]+"/"+re[1]+ "v" +re[2] + re[3] +".jpg"
+                return new_formart;
+            }
+            if(reel_regex.test(column_code)){
+                var re = reel_regex.exec(column_code);
                 return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/"+re[1]+"/"+re[2]+"/"+re[3]+"/"+column_code+".jpg";
             }
             //说明column_code不匹配规则, 默认显示加载中...todo 后续改加载失败的图片.

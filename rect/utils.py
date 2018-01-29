@@ -2,7 +2,7 @@
 
 import re
 import os
-from rect.models import ORGGroup, SliceType, PageRect, Rect, Page, TaskStatus, CCTask, \
+from rect.models import SliceType, PageRect, Rect, Page, TaskStatus, CCTask, \
                  ClassifyTask, PageTask, CharClassifyPlan, DeletionCheckItem, DelTask
 import zipfile
 import json
@@ -62,15 +62,8 @@ def exist_img_on_s3(img, series=''):
     return imgPathObj and is_img_exist(imgPath_to_name(imgPathObj))
 
 def parseBatch(batch):
-    org = int(batch.org)
-    parser = None
-    if org == ORGGroup.ALI:
-        parser = HuaNanBatchParser(batch=batch) #AliBatchParser(batch=batch)
-    elif org == ORGGroup.BAIDU:
-        parser = HuaNanBatchParser(batch=batch) #BaiDuBatchParser(batch=batch)
-    elif org == ORGGroup.HN:
-        parser = HuaNanBatchParser(batch=batch)
-    if parser: parser.parse()
+    parser = HuaNanBatchParser(batch=batch)
+
 
 
 class BatchParser(object):
@@ -210,14 +203,3 @@ class HuaNanBatchParser(BatchParser):
             self.saveRectSet(pageRectModelList, pageRect)
             return pageRectSetList
         return []
-
-
-class BaiDuBatchParser(BatchParser):
-    def parsePage(self, data):
-        pass
-
-
-class AliBatchParser(BatchParser):
-    def parsePage(self, data):
-        pass
-

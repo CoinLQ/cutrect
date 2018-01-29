@@ -21,18 +21,20 @@ import rect
 # -*- coding: utf-8 -*-
 import xadmin
 xadmin.autodiscover()
-
+from django.urls import path, re_path
 # version模块自动注册需要版本控制的 Model
 # from xadmin.plugins import xversion
 # xversion.register_models()
 
 from django.views.generic import RedirectView
 
+app_name = "cutrect"
+
 urlpatterns = [
-    url(r'^$', RedirectView.as_view(url='/xadmin')),
-    url(r'^admin/', admin.site.urls),
-    url(r'^xadmin/', include(xadmin.site.urls)),
-    url(r'^api/', include('api.urls')),
-    url(r'^auth/', include("jwt_auth.urls", namespace="api-auth")),
-    url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework'))
+    path(r'', RedirectView.as_view(url='/xadmin')),
+    re_path(r'^admin/', admin.site.urls),
+    re_path(r'^xadmin/', xadmin.site.urls),
+    re_path(r'^api/', include('api.urls')),
+    re_path(r'^auth/', include("jwt_auth.urls", namespace="api-auth")),
+    re_path(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]

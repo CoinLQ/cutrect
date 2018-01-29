@@ -56,11 +56,11 @@ class Tripitaka2(models.Model, TripiMixin):
 
 class Sutra2(models.Model, TripiMixin):
     sid = models.CharField(verbose_name='实体藏经|唯一经号编码', editable=True, max_length=32)  # 藏经版本编码 + 5位经序号+1位别本号
-    tripitaka = models.ForeignKey(Tripitaka2, related_name='sutras')
+    tripitaka = models.ForeignKey(Tripitaka2, related_name='sutras', on_delete=models.CASCADE)
     code = models.CharField(verbose_name='实体经目编码', max_length=5, blank=False)
     variant_code = models.CharField(verbose_name='别本编码', max_length=1, default='0')
     name = models.CharField(verbose_name='实体经目名称', max_length=64, blank=True)
-    lqsutra = models.ForeignKey(LQSutra2, verbose_name='龙泉经目编码', null=True, blank=True)  # （为"LQ"+ 经序号 + 别本号）
+    lqsutra = models.ForeignKey(LQSutra2, verbose_name='龙泉经目编码', null=True, blank=True, on_delete=models.CASCADE)  # （为"LQ"+ 经序号 + 别本号）
     total_reels = models.IntegerField(verbose_name='总卷数', blank=True, default=1)
 
     class Meta:
@@ -78,7 +78,7 @@ class Sutra2(models.Model, TripiMixin):
 
 
 class Reel2(models.Model):
-    sutra = models.ForeignKey(Sutra2)
+    sutra = models.ForeignKey(Sutra2, on_delete=models.CASCADE)
     code = models.CharField(max_length=128, blank=False)
     name = models.CharField(max_length=128, blank=False)
     ready = models.BooleanField(default=False)
@@ -135,7 +135,7 @@ class Reel2(models.Model):
 
 
 class Page2(models.Model):
-    reel = models.ForeignKey(Reel2)
+    reel = models.ForeignKey(Reel2, on_delete=models.CASCADE)
     code = models.CharField(max_length=128, blank=False)
     v_no = models.IntegerField(blank=True, default=0)
     v_page_no = models.IntegerField(blank=True, default=1)
@@ -168,7 +168,7 @@ class Page2(models.Model):
 
 
 class Column2(models.Model):
-    page = models.ForeignKey(Page2)
+    page = models.ForeignKey(Page2, on_delete=models.CASCADE)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=128, blank=False)
     img_path = models.CharField(max_length=128, blank=False)
