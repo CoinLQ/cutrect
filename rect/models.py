@@ -30,6 +30,22 @@ from cutrect import email_if_fails
 import os, sys
 import re
 
+try:
+    from functools import wraps
+except ImportError:
+    from django.utils.functional import wraps
+
+import inspect
+
+
+def disable_for_loaddata(signal_handler):
+    @wraps(signal_handler)
+    def wrapper(*args, **kwargs):
+        for fr in inspect.stack():
+            if inspect.getmodulename(fr[1]) == 'loaddata':
+                return
+        signal_handler(*args, **kwargs)
+    return wrapper
 
 def iterable(cls):
     """
@@ -712,6 +728,7 @@ def positive_w_h_fields(sender, instance, **kwargs):
     instance = Rect.normalize(instance)
 
 @receiver(post_save)
+@disable_for_loaddata
 def create_new_node(sender, instance, created, **kwargs):
     if sender==LQSutra:
         Node(code=instance.code, name=instance.name).save()
@@ -1405,6 +1422,7 @@ def allocateTasks(schedule, reel, type):
 
 
 @receiver(post_save, sender=Schedule)
+@disable_for_loaddata
 def post_schedule_create_pretables(sender, instance, created, **kwargs):
     if created:
         Schedule_Task_Statistical(schedule=instance).save()
