@@ -118,7 +118,7 @@ class Schedule_Task_StatisticalAdmin(object):
         'completed_pptasks', 'amount_of_vdeltasks', 'completed_vdeltasks', 'amount_of_reviewtasks',
         'completed_reviewtasks', 'remark', 'updated_at')
     list_display_links = ('completed_cctasks',)
-    search_fields = ('schedule',)
+    search_fields = ('amount_of_cctasks',)
     list_editable = ('remark',)
     list_filter = ('completed_cctasks',)
 
@@ -139,7 +139,7 @@ class Reel_Task_StatisticalAdmin(object):
         'amount_of_absenttasks', 'completed_absenttasks', 'amount_of_pptasks',
         'completed_pptasks', 'updated_at', 'resume_pptask')
     list_display_links = ('completed_cctasks', 'reel')
-    search_fields = ('schedule', 'reel')
+    search_fields = ('amount_of_cctasks', 'completed_cctasks')
     list_filter = ('completed_cctasks',)
 
 
@@ -148,7 +148,7 @@ class CCTaskAdmin(object):
     list_display = ("number", "schedule", "ttype", "status", "update_date", "rect_set", "owner")
     list_display_links = ("number",)
     list_filter = ("number", 'update_date')
-    search_fields = ["owner", "status" ]
+    search_fields = ["owner__email", "status" ]
     list_editable = ('owner', "status")
     date_hierarchy = 'update_date'  # 详细时间分层筛选
     relfield_style = "fk-select"
@@ -171,7 +171,7 @@ class ClassifyTaskAdmin(object):
     list_display = ("number", "schedule", "ttype", "status", "update_date", "rect_set", "owner")
     list_display_links = ("number",)
     list_filter = ("number", 'update_date')
-    search_fields = ["owner", "status" ]
+    search_fields = ["owner__email", "status" ]
     list_editable = ('owner', "status")
     date_hierarchy = 'update_date'  # 详细时间分层筛选
     relfield_style = "fk-select"
@@ -181,7 +181,7 @@ class DelTaskAdmin(object):
     list_display = ("number", "schedule", "ttype", "status", "update_date", "rect_set", "owner")
     list_display_links = ("number",)
     list_filter = ("number", 'update_date')
-    search_fields = ["owner", "status" ]
+    search_fields = ["owner__email", "status" ]
     list_editable = ('owner', "status")
     date_hierarchy = 'update_date'  # 详细时间分层筛选
     relfield_style = "fk-select"
@@ -191,7 +191,7 @@ class PageTaskAdmin(object):
     list_display = ("number", "schedule", "ttype", "status", "update_date", "page_set", "owner")
     list_display_links = ("number",)
     list_filter = ("number", 'update_date')
-    search_fields = ["owner", "status" ]
+    search_fields = ["owner__email", "status" ]
     list_editable = ('owner', "status")
     date_hierarchy = 'update_date'  # 详细时间分层筛选
     relfield_style = "fk-select"
@@ -201,7 +201,7 @@ class AbsentTaskAdmin(object):
     list_display = ("number", "schedule", "ttype", "status", "update_date", "page_set", "owner")
     list_display_links = ("number",)
     list_filter = ("number", 'update_date')
-    search_fields = ["owner", "status" ]
+    search_fields = ["owner__email", "status" ]
     list_editable = ('owner', "status")
     date_hierarchy = 'update_date'  # 详细时间分层筛选
     relfield_style = "fk-select"

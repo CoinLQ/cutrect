@@ -57,9 +57,11 @@ IF NEW.bar_no IS NULL THEN
 NEW.bar_no := '0';
 END IF;
 IF NEW.vol_no = 0 OR NEW.vol_no IS NULL THEN
-NEW.pid := LEFT(NEW.reel_id, 8)||'r'||to_char(NEW.reel_no,'FM000')||'p'||to_char(NEW.reel_page_no,'FM0000')||NEW.bar_no;
+NEW.pid := LEFT(NEW.reel_id, 8)||'r'||to_char(NEW.reel_no,'FM000')||'p'||to_char(NEW.reel_page_no,'FM00000')||NEW.bar_no;
+ELSIF NEW.envelop_no = 0 OR NEW.envelop_no IS NULL THEN
+NEW.pid := LEFT(NEW.reel_id, 8)||'v'||to_char(NEW.vol_no,'FM000')||'p'||to_char(NEW.page_no,'FM00000')||NEW.bar_no;
 ELSE
-NEW.pid := LEFT(NEW.reel_id, 8)||'v'||to_char(NEW.vol_no,'FM000')||'p'||to_char(NEW.page_no,'FM0000')||NEW.bar_no;
+NEW.pid := LEFT(NEW.reel_id, 8)||'e'||to_char(NEW.envelop_no,'FM000')||'v'||to_char(NEW.vol_no,'FM000')||'p'||to_char(NEW.page_no,'FM00000')||NEW.bar_no;
 END IF;
 RETURN NEW;
 END;

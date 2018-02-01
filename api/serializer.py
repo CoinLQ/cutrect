@@ -5,7 +5,7 @@ class RectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rect
         can_write_fields = ('x', 'y', 'w', 'h', 'op', 'ch', 'id', 'page_code', 'line_no', 'char_no')
-        fields = ('cncode', 'w', 'line_no', 'ch', 'wcc', 'op', 'cc',
+        fields = ('w', 'line_no', 'ch', 'wcc', 'op', 'cc',
                   'x', 'id', 'ts', 'char_no', 'h', 'y', 'column_set', 'cid', 'page_code',
                   'reel_id')
 
