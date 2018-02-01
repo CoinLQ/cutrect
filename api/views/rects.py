@@ -145,8 +145,8 @@ class RectViewSet(viewsets.ReadOnlyModelViewSet, mixins.ListModelMixin):
 
 
 
-    @list_route(methods=['post'], url_path='add_ocr_tab')
-    def add_ocr_tab(self, request):
+    @list_route(methods=['post'], url_path='get_ocr_text')
+    def getOCRText(self, request):
 
         class DefaultDict(dict):
             def __missing__(self, key):
