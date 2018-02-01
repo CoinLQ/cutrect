@@ -13,7 +13,7 @@ import urllib.request
 import urllib.parse
 import json
 
-// TODO: move config into settings.
+# TODO: move config into settings.
 USER_ID = "SCUTDLVC"
 TABLE_NAME = "OCR_DB"
 APIURL = 'http://54.223.50.62/demo/ocr/'
