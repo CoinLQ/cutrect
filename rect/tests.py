@@ -59,7 +59,7 @@ class BaseModelTest(TestCase):
         reel = Reel.objects.get(pk=reel.reel_sn)
         rects = [Rect(**rect) for rect in rect_datas]
         Rect.objects.bulk_create(rects)
-        json =[{'x1': 1200, 'col_id': 'YB000790v001p0001001', 'y': 0, 'y1': 780, 'x': 1131}, {'x1': 1131, 'col_id': 'YB000790v001p0001002', 'y': 0, 'y1': 780, 'x': 1088}, {'x1': 1088, 'col_id': 'YB000790v001p0001003', 'y': 0, 'y1': 780, 'x': 1035}, {'x1': 1035, 'col_id': 'YB000790v001p0001004', 'y': 0, 'y1': 780, 'x': 984}, {'x1': 984, 'col_id': 'YB000790v001p0001005', 'y': 0, 'y1': 780, 'x': 940}, {'x1': 940, 'col_id': 'YB000790v001p0001006', 'y': 0, 'y1': 780, 'x': 891}, {'x1': 891, 'col_id': 'YB000790v001p0001007', 'y': 0, 'y1': 780, 'x': 841}, {'x1': 841, 'col_id': 'YB000790v001p0001008', 'y': 0, 'y1': 780, 'x': 790}, {'x1': 790, 'col_id': 'YB000790v001p0001009', 'y': 0, 'y1': 780, 'x': 744}, {'x1': 744, 'col_id': 'YB000790v001p0001010', 'y': 0, 'y1': 780, 'x': 696}, {'x1': 696, 'col_id': 'YB000790v001p0001011', 'y': 0, 'y1': 780, 'x': 646}, {'x1': 646, 'col_id': 'YB000790v001p0001012', 'y': 0, 'y1': 780, 'x': 598}, {'x1': 598, 'col_id': 'YB000790v001p0001013', 'y': 0, 'y1': 780, 'x': 550}, {'x1': 550, 'col_id': 'YB000790v001p0001014', 'y': 0, 'y1': 780, 'x': 501}, {'x1': 501, 'col_id': 'YB000790v001p0001015', 'y': 0, 'y1': 780, 'x': 452}, {'x1': 452, 'col_id': 'YB000790v001p0001016', 'y': 0, 'y1': 780, 'x': 406}, {'x1': 406, 'col_id': 'YB000790v001p0001017', 'y': 0, 'y1': 780, 'x': 358}, {'x1': 358, 'col_id': 'YB000790v001p0001018', 'y': 0, 'y1': 780, 'x': 310}, {'x1': 310, 'col_id': 'YB000790v001p0001019', 'y': 0, 'y1': 780, 'x': 260}, {'x1': 260, 'col_id': 'YB000790v001p0001020', 'y': 0, 'y1': 780, 'x': 212}, {'x1': 212, 'col_id': 'YB000790v001p0001021', 'y': 0, 'y1': 780, 'x': 164}, {'x1': 164, 'col_id': 'YB000790v001p0001022', 'y': 0, 'y1': 780, 'x': 116}, {'x1': 116, 'col_id': 'YB000790v001p0001023', 'y': 0, 'y1': 780, 'x': 0}]
+        json = [{"col_id": "YB_27_c1001", "x": 792, "y": 0, "x1": 1200, "y1": 811}, {"col_id": "YB_27_c1002", "x": 741, "y": 0, "x1": 792, "y1": 811}, {"col_id": "YB_27_c1003", "x": 683, "y": 0, "x1": 741, "y1": 811}, {"col_id": "YB_27_c1004", "x": 624, "y": 0, "x1": 683, "y1": 811}, {"col_id": "YB_27_c1005", "x": 567, "y": 0, "x1": 624, "y1": 811}, {"col_id": "YB_27_c1006", "x": 495, "y": 0, "x1": 567, "y1": 811}, {"col_id": "YB_27_c1007", "x": 435, "y": 0, "x1": 495, "y1": 811}, {"col_id": "YB_27_c1008", "x": 378, "y": 0, "x1": 435, "y1": 811}, {"col_id": "YB_27_c1009", "x": 319, "y": 0, "x1": 378, "y1": 811}, {"col_id": "YB_27_c1010", "x": 264, "y": 0, "x1": 319, "y1": 811}, {"col_id": "YB_27_c1011", "x": 185, "y": 0, "x1": 264, "y1": 811}, {"col_id": "YB_27_c1012", "x": 0, "y": 0, "x1": 185, "y1": 811}, {"col_id": "YB_27_c1013", "x": 795, "y": 811, "x1": 1200, "y1": 1625}, {"col_id": "YB_27_c1014", "x": 744, "y": 811, "x1": 795, "y1": 1625}, {"col_id": "YB_27_c1015", "x": 684, "y": 811, "x1": 744, "y1": 1625}, {"col_id": "YB_27_c1016", "x": 630, "y": 811, "x1": 684, "y1": 1625}, {"col_id": "YB_27_c1017", "x": 573, "y": 811, "x1": 630, "y1": 1625}, {"col_id": "YB_27_c1018", "x": 500, "y": 811, "x1": 573, "y1": 1625}, {"col_id": "YB_27_c1019", "x": 444, "y": 811, "x1": 500, "y1": 1625}, {"col_id": "YB_27_c1020", "x": 380, "y": 811, "x1": 444, "y1": 1625}, {"col_id": "YB_27_c1021", "x": 328, "y": 811, "x1": 380, "y1": 1625}, {"col_id": "YB_27_c1022", "x": 271, "y": 811, "x1": 328, "y1": 1625}, {"col_id": "YB_27_c1023", "x": 0, "y": 811, "x1": 271, "y1": 1625}]
         page = Page(reel=reel, vol_no=58, page_no=22, json=json)
         page.save()
         PageRect(page_id=page.page_sn, reel_id=reel.reel_sn, line_count=0, column_count=0, rect_set=pagerect_data["char_data"]).save()
@@ -78,10 +78,41 @@ class BaseModelTest(TestCase):
         reel = Reel.objects.get(pk=reel.reel_sn)
         rects = [Rect(**rect) for rect in gl_rect_datas]
         Rect.objects.bulk_create(rects)
-        json =[{'x1': 1200, 'col_id': 'GL000790r001p0001001', 'y': 0, 'y1': 780, 'x': 1131}, {'x1': 1131, 'col_id': 'GL000790r001p0001002', 'y': 0, 'y1': 780, 'x': 1088}, {'x1': 1088, 'col_id': 'GL000790r001p0001003', 'y': 0, 'y1': 780, 'x': 1035}, {'x1': 1035, 'col_id': 'GL000790r001p0001004', 'y': 0, 'y1': 780, 'x': 984}, {'x1': 984, 'col_id': 'GL000790r001p0001005', 'y': 0, 'y1': 780, 'x': 940}, {'x1': 940, 'col_id': 'GL000790r001p0001006', 'y': 0, 'y1': 780, 'x': 891}, {'x1': 891, 'col_id': 'GL000790r001p0001007', 'y': 0, 'y1': 780, 'x': 841}, {'x1': 841, 'col_id': 'GL000790r001p0001008', 'y': 0, 'y1': 780, 'x': 790}, {'x1': 790, 'col_id': 'GL000790r001p0001009', 'y': 0, 'y1': 780, 'x': 744}, {'x1': 744, 'col_id': 'GL000790r001p0001010', 'y': 0, 'y1': 780, 'x': 696}, {'x1': 696, 'col_id': 'GL000790r001p0001011', 'y': 0, 'y1': 780, 'x': 646}, {'x1': 646, 'col_id': 'GL000790r001p0001012', 'y': 0, 'y1': 780, 'x': 598}, {'x1': 598, 'col_id': 'GL000790r001p0001013', 'y': 0, 'y1': 780, 'x': 550}, {'x1': 550, 'col_id': 'GL000790r001p0001014', 'y': 0, 'y1': 780, 'x': 501}, {'x1': 501, 'col_id': 'GL000790r001p0001015', 'y': 0, 'y1': 780, 'x': 452}, {'x1': 452, 'col_id': 'GL000790r001p0001016', 'y': 0, 'y1': 780, 'x': 406}, {'x1': 406, 'col_id': 'GL000790r001p0001017', 'y': 0, 'y1': 780, 'x': 358}, {'x1': 358, 'col_id': 'GL000790r001p0001018', 'y': 0, 'y1': 780, 'x': 310}, {'x1': 310, 'col_id': 'GL000790r001p0001019', 'y': 0, 'y1': 780, 'x': 260}, {'x1': 260, 'col_id': 'GL000790r001p0001020', 'y': 0, 'y1': 780, 'x': 212}, {'x1': 212, 'col_id': 'GL000790r001p0001021', 'y': 0, 'y1': 780, 'x': 164}, {'x1': 164, 'col_id': 'GL000790r001p0001022', 'y': 0, 'y1': 780, 'x': 116}, {'x1': 116, 'col_id': 'GL000790r001p0001023', 'y': 0, 'y1': 780, 'x': 0}]
+        json = [{"col_id": "GL_79_1_c1001", "x": 1131, "y": 0, "x1": 1200, "y1": 780}, {"col_id": "GL_79_1_c1002", "x": 1088, "y": 0, "x1": 1131, "y1": 780}, {"col_id": "GL_79_1_c1003", "x": 1035, "y": 0, "x1": 1088, "y1": 780}, {"col_id": "GL_79_1_c1004", "x": 984, "y": 0, "x1": 1035, "y1": 780}, {"col_id": "GL_79_1_c1005", "x": 940, "y": 0, "x1": 984, "y1": 780}, {"col_id": "GL_79_1_c1006", "x": 891, "y": 0, "x1": 940, "y1": 780}, {"col_id": "GL_79_1_c1007", "x": 841, "y": 0, "x1": 891, "y1": 780}, {"col_id": "GL_79_1_c1008", "x": 790, "y": 0, "x1": 841, "y1": 780}, {"col_id": "GL_79_1_c1009", "x": 744, "y": 0, "x1": 790, "y1": 780}, {"col_id": "GL_79_1_c1010", "x": 696, "y": 0, "x1": 744, "y1": 780}, {"col_id": "GL_79_1_c1011", "x": 646, "y": 0, "x1": 696, "y1": 780}, {"col_id": "GL_79_1_c1012", "x": 598, "y": 0, "x1": 646, "y1": 780}, {"col_id": "GL_79_1_c1013", "x": 550, "y": 0, "x1": 598, "y1": 780}, {"col_id": "GL_79_1_c1014", "x": 501, "y": 0, "x1": 550, "y1": 780}, {"col_id": "GL_79_1_c1015", "x": 452, "y": 0, "x1": 501, "y1": 780}, {"col_id": "GL_79_1_c1016", "x": 406, "y": 0, "x1": 452, "y1": 780}, {"col_id": "GL_79_1_c1017", "x": 358, "y": 0, "x1": 406, "y1": 780}, {"col_id": "GL_79_1_c1018", "x": 310, "y": 0, "x1": 358, "y1": 780}, {"col_id": "GL_79_1_c1019", "x": 260, "y": 0, "x1": 310, "y1": 780}, {"col_id": "GL_79_1_c1020", "x": 212, "y": 0, "x1": 260, "y1": 780}, {"col_id": "GL_79_1_c1021", "x": 164, "y": 0, "x1": 212, "y1": 780}, {"col_id": "GL_79_1_c1022", "x": 116, "y": 0, "x1": 164, "y1": 780}, {"col_id": "GL_79_1_c1023", "x": 0, "y": 0, "x1": 116, "y1": 780}]
         page = Page(reel=reel, reel_no=58, reel_page_no=22, json=json)
         page.save()
         PageRect(page_id=page.page_sn, reel_id=reel.reel_sn, line_count=0, column_count=0, rect_set=gl_pagerect_data["char_data"]).save()
+
+    def test_oldid2s3id(self):
+        # YB000010v001p000010 -> YB000010_1_p10
+        self.assertEquals(Page.convertSN_to_S3ID('YB000010v001p000010'), 'YB000010_1_p10')
+        # YB00001av001p00001a -> YB00001a_1_p1a
+        self.assertEquals(Page.convertSN_to_S3ID('YB00001av001p00001a'), 'YB00001a_1_p1a')
+        # GL000010r003p001230 -> GL000010_1_3_p1230
+        self.assertEquals(Page.convertSN_to_S3ID('GL000010r003p001230'), 'GL000010_1_3_p1230')
+        # GL00001ar003p00123a -> GL00001a_1_3_p1230
+        self.assertEquals(Page.convertSN_to_S3ID('GL00001ar003p00123a'), 'GL00001a_1a_3_p123a')
+        # JX000010e123v123p001230 -> JX000010_123_123_p1230
+        self.assertEquals(Page.convertSN_to_S3ID('JX000010e123v123p001230'), 'JX000010_123_123_p1230')
+        # JX00001ae020v023p00123a -> JX00001a_20_23_p123a
+        self.assertEquals(Page.convertSN_to_S3ID('JX00001ae020v023p00123a'), 'JX00001a_20_23_p123a')
+
+    def tests3id_topath(self):
+        # YB000010_1_p10 -> YB/1/YB_1_1
+        self.assertEquals(Page.sid_to_uri('YB000010_1_p10'), 'YB/1/YB_1_1')
+        # YB000010_1_p1a -> YB/1/YB_1_1a
+        self.assertEquals(Page.sid_to_uri('YB000010_1_p1a'), 'YB/1/YB_1_1a')
+        # GL000010_1_3_p1230 -> GL/1/3/GL_1_3_123
+        self.assertEquals(Page.sid_to_uri('GL000010_1_3_p1230'), 'GL/1/3/GL_1_3_123')
+        # GL00001a_1a_3_p123a -> GL/1a/3/GL_1a_3_123a
+        self.assertEquals(Page.sid_to_uri('GL00001a_1a_3_p123a'), 'GL/1a/3/GL_1a_3_123a')
+        # JX000010_123_123_p1230 -> JX/123/123/JX_123_123_123
+        self.assertEquals(Page.sid_to_uri('JX000010_123_123_p1230'), 'JX/123/123/JX_123_123_123')
+        # JX00001a_20_23_p123a -> JX/20/23/JX_20_23_123a
+        self.assertEquals(Page.sid_to_uri('JX00001a_20_23_p123a'), 'JX/20/23/JX_20_23_123a')
+
+    def test_s3col_topath(self):
+        self.assertEquals(Rect.column_uri_path('GL_79_1_c1001'), 'https://s3.cn-north-1.amazonaws.com.cn/lqdzj-col/GL/79/1/GL_79_1_c1001.jpg')
 
 
     def test_basic_model_pk_rules(self):
@@ -100,18 +131,17 @@ class BaseModelTest(TestCase):
 
             p = Page(reel=reel, vol_no=58, page_no=22)
             page = Page.objects.get(pk=p.page_sn)
-            self.assertEquals(page.pid, 'YB000790v058p00220')
-            image_path = 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/YB/058/YBv058p00220.jpg'
+            self.assertEquals(page.pid, 'YB000790v058p000220')
+            image_path = 'https://s3.cn-north-1.amazonaws.com.cn/lqdzj-image/YB/58/YB_58_22.jpg'
             self.assertEquals(page.get_real_path(), image_path)
 
-            print('ocolumn_sn: YB000790v058p0022001' )
 
             rect = Rect.generate({'page_code': page.pid, 'reel': page.reel, 'char_no':5 ,'line_no': 10})
             rect = Rect.objects.get(cid=rect.rect_sn)
             print(rect.rect_sn)
             print(rect.column_uri())
             self.assertEquals(rect.reel_id, 'YB000790r058')
-            self.assertEquals(rect.rect_sn, 'YB000790v058p0022010n05')
+            self.assertEquals(rect.rect_sn, 'YB000790v058p00022010n05')
 
         with transaction.atomic():
             t = Tripitaka.objects.get(pk='GL')
@@ -125,10 +155,9 @@ class BaseModelTest(TestCase):
 
             p = Page(reel=reel, reel_no=58, reel_page_no=22)
             page = Page.objects.get(pk=p.page_sn)
-            self.assertEquals(page.pid, 'GL000790r058p00220')
-            image_path = 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/GL/000790/058/GL000790r058p00220.jpg'
+            self.assertEquals(page.pid, 'GL000790r058p000220')
+            image_path = 'https://s3.cn-north-1.amazonaws.com.cn/lqdzj-image/GL/79/58/GL_79_58_22.jpg'
             self.assertEquals(page.get_real_path(), image_path)
-            print('ocolumn_sn: GL000790r058p0022001' )
 
 
             rect = Rect(page_code=page.pid, reel=page.reel, char_no=5, line_no=10)
@@ -137,15 +166,15 @@ class BaseModelTest(TestCase):
             print(rect.rect_sn)
             print(rect.column_uri())
             self.assertEquals(rect.reel_id, 'GL000790r058')
-            self.assertEquals(rect.rect_sn, 'GL000790r058p0022010n05')
+            self.assertEquals(rect.rect_sn, 'GL000790r058p00022010n05')
 
 
     def test_base_rect(self):
-        rect = Rect(page_code='YB000321v010p00100', reel_id='YB000790r058', char_no=5, line_no=10)
+        rect = Rect(page_code='YB000321v010p000100', reel_id='YB000790r058', char_no=5, line_no=10)
         rect.cid = rect.rect_sn
         rect.save()
         rect = Rect.objects.get(cid=rect.rect_sn)
-        rect = Rect(page_code='GL000321r010p00100', reel_id='GL000790r058', char_no=5, line_no=10)
+        rect = Rect(page_code='GL000321r010p000100', reel_id='GL000790r058', char_no=5, line_no=10)
         rect.cid = rect.rect_sn
         rect.save()
         rect = Rect.objects.get(cid=rect.rect_sn)
@@ -168,11 +197,11 @@ class BaseModelTest(TestCase):
                 "x1": 987,
                 "y1": 780,
                 "y": 0,
-                "col_id": "YB000790v058p0022005",
+                "col_id": "YB000790v058p00022005",
                 "x": 936
             },
-            "cid": "YB000790v058p0022005n09",
-            "page_code": "YB000790v058p00220",
+            "cid": "YB000790v058p00022005n09",
+            "page_code": "YB000790v058p000220",
             "reel_id": "YB000790r058"
         },
         {
@@ -191,11 +220,11 @@ class BaseModelTest(TestCase):
                 "x1": 842,
                 "y1": 780,
                 "y": 0,
-                "col_id": "YB000790v058p0022008",
+                "col_id": "YB000790v058p00022008",
                 "x": 792
             },
-            "cid": "YB000790v058p0022008n03",
-            "page_code": "YB000790v058p00220",
+            "cid": "YB000790v058p00022008n03",
+            "page_code": "YB000790v058p000220",
             "reel_id": "YB000790r058"
         }]
         Rect.bulk_insert_or_replace(rects)
@@ -218,7 +247,7 @@ class BaseModelTest(TestCase):
     def test_reformat_page(self):
         count = Rect.objects.count()
         # print(Rect.objects.values_list('cid', flat=True))
-        PageRect.reformat_rects('YB000790v058p00220')
+        PageRect.reformat_rects('YB000790v058p000220')
         # print(Rect.objects.values_list('cid', flat=True))
         self.assertEquals(Rect.objects.count(), count)
 
@@ -232,4 +261,4 @@ class BaseModelTest(TestCase):
         self.assertEquals(len(PageRect.objects.first().rect_set), count)
 
     def __test_make_pagerect_demo(self):
-        Page.objects.filter(pid='YB000790v012p00200')
+        Page.objects.filter(pid='YB000790v012p000200')

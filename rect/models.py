@@ -364,6 +364,7 @@ class Page(models.Model):
     pid = models.CharField(verbose_name='实体藏经页级总编码', max_length=21, blank=False, primary_key=True)
     reel = models.ForeignKey(Reel, related_name='pages', on_delete=models.SET_NULL, null=True)
     bar_no = models.CharField(verbose_name='实体藏经页级栏序号', max_length=1, default='0')
+    envelop_no = models.SmallIntegerField(verbose_name='函序号（第几）', default=0, blank=False)
     vol_no = models.SmallIntegerField(verbose_name='册序号（第几）', default=0, blank=False)
     page_no = models.SmallIntegerField(verbose_name='册级页序号', default=0, blank=False)
     reel_no = models.SmallIntegerField(verbose_name='卷序号（第几）', default=0, blank=False)
@@ -379,7 +380,7 @@ class Page(models.Model):
     cut_wrong_count = models.SmallIntegerField('切分信息识别错的字数', default=0)
     cut_confirm_count = models.SmallIntegerField('切分信息需要确认的字数', default=0)
     cut_verify_count = models.SmallIntegerField('切分信息需要确认的字数', default=0)
-    s3_uri = models.CharField(verbose_name='图片路径', max_length=128, blank=False)
+    s3_id = models.CharField(verbose_name='图片路径', max_length=128, default='', blank=False)
 
     def _remote_image_stream(self):
         opener = urllib.request.build_opener()
@@ -388,20 +389,23 @@ class Page(models.Model):
         reader = opener.open(self.get_real_path())
         return Image.open(BytesIO(reader.read()))
 
+    # https://hk.tower.im/projects/3032432a1c5b4618a668509f25448034/messages/419ecfb3901e4faba2574447ce8cc7f6/
+    # 储存格式文档
+    @classmethod
+    def sid_to_uri(cls, s3_id):
+        tr_code = s3_id[0:2]
+        trail_code = s3_id[-1]
+        ann_code = tr_code + s3_id[8:-1]
+        ann_code = ann_code.replace("_", "/")
+        ann_code = ann_code.replace('p', '')
+        if trail_code != '0':
+            ann_code += trail_code
+
+        return "%s/%s" % (os.path.dirname(ann_code), ann_code.replace("/", "_"))
 
     def get_real_path(self):
-        PAGE_VOLUME_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>\d{6})v(?P<vol_no>\d{3})p(?P<page_no>\d{5})'
-        PAGE_REEL_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>\d{6})r(?P<reel_no>\d{3})p(?P<page_no>\d{5})'
-        ret = re.compile(PAGE_VOLUME_RE).match(self.pid)
-        if (ret):
-            result = ret.groupdict()
-            return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%sv%sp%s.jpg' % (result['tp_no'], result['vol_no'], result['tp_no'], result['vol_no'], result['page_no'])
-        ret = re.compile(PAGE_REEL_RE).match(self.pid)
-        if (ret):
-            result = ret.groupdict()
-            return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%s/%s.jpg' % (result['tp_no'], result['sutra_no'], result['reel_no'], self.pid)
-
-        return ''
+        self.s3_id = self.s3_id or Page.convertSN_to_S3ID(self.page_sn)
+        return 'https://s3.cn-north-1.amazonaws.com.cn/lqdzj-image/%s.jpg' % Page.sid_to_uri(self.s3_id);
 
     def down_col_pos(self):
         cut_file = self.get_real_path()[0:-3] + "col"
@@ -415,7 +419,7 @@ class Page(models.Model):
         try:
             body = response.read().decode('utf8')
             json_data = json.loads(body)
-            if type(json_data['col_data'])==list :
+            if type(json_data['col_data']) == list :
                 self.status = PageStatus.RECT_COL_NOTREADY
                 self.json = json_data['col_data']
                 self.save()
@@ -441,8 +445,9 @@ class Page(models.Model):
         try:
             body = response.read().decode('utf8')
             json_data = json.loads(body)
-            if json_data['page_code'] == self.pid and json_data['reel_no'] == self.reel_id \
-                and type(json_data['char_data'])==list :
+            K, ext = os.path.splitext(os.path.basename(Page.sid_to_uri(self.s3_id)))
+            image_code = "%s.%s" % (K, ext)
+            if json_data['img_code'] == image_code and type(json_data['char_data'])==list :
                 pass
         except:
             print(self.pid + ": rect parse failed")
@@ -457,12 +462,16 @@ class Page(models.Model):
         self.save(update_fields=['status'])
         print(self.pid + ": pagerect saved")
 
+    # https://hk.tower.im/projects/3032432a1c5b4618a668509f25448034/messages/419ecfb3901e4faba2574447ce8cc7f6/
+    # 储存格式文档
     @property
     def page_sn(self):
         if (self.vol_no == 0):
-            return "%sr%03dp%04d%s" % (self.reel_id[0:-4], self.reel_no, self.reel_page_no, self.bar_no)
+            return "%sr%03dp%05d%s" % (self.reel_id[0:-4], self.reel_no, self.reel_page_no, self.bar_no)
+        elif (self.envelop_no == 0):
+            return "%sv%03dp%05d%s" % (self.reel_id[0:-4], self.vol_no, self.page_no, self.bar_no)
         else:
-            return "%sv%03dp%04d%s" % (self.reel_id[0:-4], self.vol_no, self.page_no, self.bar_no)
+            return "%se%3dv%03dp%05d%s" % (self.reel_id[0:-4], self.envelop_no, self.vol_no, self.page_no, self.bar_no)
 
     def save(self, *args, **kwargs):
         if (self.vol_no == 0 and (self.reel_no == 0 or self.reel_page_no == 0)):
@@ -471,9 +480,37 @@ class Page(models.Model):
             raise ValidationError('When reel_no is 0, vol_no and page_no need be set.')
         super(Page, self).save(*args, **kwargs)
 
+    @classmethod
+    def convertSN_to_S3ID(cls, page_sn):
+        COL_VOLUME_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>[\da-z]{6})v(?P<vol_no>\d{3})p(?P<page_no>\d{5})(?P<bar_no>[0a-z]?)'
+        COL_REEL_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>[\da-z]{6})r(?P<reel_no>\d{3})p(?P<reel_page_no>\d{5})(?P<bar_no>[0a-z]?)'
+        COL_ENVELOP_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>[\da-z]{6})e(?P<envelop_no>\d{3})v(?P<vol_no>\d{3})p(?P<page_no>\d{5})(?P<bar_no>[0a-z]?)'
+        ret = re.compile(COL_VOLUME_RE).match(page_sn)
+        if (ret):
+            result = ret.groupdict()
+            return '%s%s_%d_p%d%s' % (result['tp_no'], result['sutra_no'], int(result['vol_no']), int(result['page_no']), result['bar_no'])
+        ret = re.compile(COL_REEL_RE).match(page_sn)
+        if (ret):
+            result = ret.groupdict()
+            sutra_no = result['sutra_no']
+            sutra_code = result['sutra_no'].lstrip("0")
+            if sutra_code[-1] == '0':
+                sutra_code = sutra_code[0:-1]
+            return '%s%s_%s_%d_p%d%s' % (result['tp_no'], sutra_no, sutra_code, int(result['reel_no']), int(result['reel_page_no']), result['bar_no'])
+        ret = re.compile(COL_ENVELOP_RE).match(page_sn)
+        if (ret):
+            result = ret.groupdict()
+            return '%s%s_%d_%d_p%d%s' % (result['tp_no'], result['sutra_no'], int(result['envelop_no']), int(result['vol_no']), int(result['page_no']), result['bar_no'])
+
+
     class Meta:
         verbose_name = '实体藏经页'
         verbose_name_plural = '实体藏经页管理'
+
+
+@receiver(pre_save, sender=Page)
+def rebuild_page_s3_id(sender, instance, **kwargs):
+    instance.s3_id = Page.convertSN_to_S3ID(instance.page_sn)
 
 class PageRect(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -499,9 +536,6 @@ class PageRect(models.Model):
     def serialize_set(self):
         return dict((k, v) for k, v in self.__dict__.items() if not k.startswith("_"))
 
-    @property
-    def s3_uri(self):
-        return self.page.s3_inset.name
 
     def rebuild_rect(self):
         if len(self.rect_set) == 0:
@@ -607,6 +641,7 @@ class Rect(models.Model):
     s3_inset = models.FileField(max_length=256, blank=True, null=True, verbose_name=u's3地址', upload_to='tripitaka/hans',
                                   storage='storages.backends.s3boto.S3BotoStorage')
     updated_at = models.DateTimeField(verbose_name='更新时间1', auto_now=True)
+    s3_id = models.CharField(verbose_name='图片路径', max_length=128, default='', blank=False)
 
     class DefaultDict(dict):
 
@@ -621,21 +656,13 @@ class Rect(models.Model):
         return self.ch
 
     def column_uri(self):
-        COL_VOLUME_RE = r'(?P<tp_no>[A-Z]{2})v(?P<vol_no>\d{3})p(?P<column_no>\d{7})'
-        COL_REEL_RE = r'(?P<tp_no>[A-Z]{2})(?P<sutra_no>\d{6})r(?P<reel_no>\d{3})p(?P<column_no>\d{7})'
-        col_id = self.column_set['col_id']
-        if not col_id:
-            return ''
-        ret = re.compile(COL_VOLUME_RE).match(col_id)
-        if (ret):
-            result = ret.groupdict()
-            return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%sv%sp%s.jpg' % (result['tp_no'], result['vol_no'], result['tp_no'], result['vol_no'], result['column_no'])
-        ret = re.compile(COL_REEL_RE).match(col_id)
-        if (ret):
-            result = ret.groupdict()
-            return 'https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/%s/%s/%s/%s.jpg' % (result['tp_no'], result['sutra_no'], result['reel_no'], col_id)
+        return Rect.column_uri_path(self.column_set['col_id'])
 
-        return ''
+    @staticmethod
+    def column_uri_path(col_s3_id):
+        col_id = str(col_s3_id)
+        col_path = col_id.replace('_', '/')
+        return 'https://s3.cn-north-1.amazonaws.com.cn/lqdzj-col/%s/%s.jpg' % (os.path.dirname(col_path), col_id)
 
     @staticmethod
     def canonicalise_uuid(uuid):
@@ -653,13 +680,6 @@ class Rect(models.Model):
     @property
     def serialize_set(self):
         return dict((k, v) for k, v in self.__dict__.items() if not k.startswith("_"))
-
-    @property
-    def cncode(self):
-        if "r" in self.page_code:
-            return "%s%02d" % (self.page_code, self.line_no)
-        else:
-            return "%sv%sp%s%s" % (self.page_code[0:2], self.page_code[9:12], self.page_code[13:18])
 
     @staticmethod
     def generate(rect_dict={}, exist_rects=[]):
@@ -726,6 +746,7 @@ class Rect(models.Model):
 @receiver(pre_save, sender=Rect)
 def positive_w_h_fields(sender, instance, **kwargs):
     instance = Rect.normalize(instance)
+    instance.sid = "%s%02dn%02d" % (Page.convertSN_to_S3ID(instance.page_code), instance.line_no, instance.char_no)
 
 @receiver(post_save)
 @disable_for_loaddata

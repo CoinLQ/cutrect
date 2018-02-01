@@ -37,16 +37,14 @@ Vue.component('rectitem', {
             }
         },
         getImageUrl: function (column_code) {
-            const regex = /^([A-Z]+)v(\d+)(p\d+)\w*/;
-            const reel_regex = /^([A-Z]+)(\d+)r(\d+)(p\d+)\w*/;
+            const regex = /^.*_.*/;
             if(regex.test(column_code)){
-                var re = regex.exec(column_code);
-                let new_formart = "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/"+re[1]+"/"+re[2]+"/"+re[1]+ "v" +re[2] + re[3] +".jpg"
-                return new_formart;
-            }
-            if(reel_regex.test(column_code)){
-                var re = reel_regex.exec(column_code);
-                return "https://s3.cn-north-1.amazonaws.com.cn/lqcharacters-images/"+re[1]+"/"+re[2]+"/"+re[3]+"/"+column_code+".jpg";
+                Array.prototype.subarray=function(start,end){
+                    if(!end){ end=-1;}
+                   return this.slice(start, this.length+1-(end*-1));
+                }
+                let column_path = column_code.split('_').subarray(0,-2).join("/")
+                return "https://s3.cn-north-1.amazonaws.com.cn/lqdzj-col/" + column_path + "/" + column_code + ".jpg"
             }
             //说明column_code不匹配规则, 默认显示加载中...todo 后续改加载失败的图片.
             this.clip = '/static/img/FhHRx.gif';
