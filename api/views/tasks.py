@@ -188,7 +188,8 @@ class PageTaskViewSet(RectBulkOpMixin,
         _rects = Rect.objects.filter(page_code=page_id).all()
         rects = RectSerializer(data=_rects, many=True)
         rects.is_valid()
-        s3_id = pages[0].s3_id or Page.convertSN_to_S3ID(pages[0].page_sn)
+        page = pages[0].page
+        s3_id = page.s3_id or Page.convertSN_to_S3ID(page.page_sn)
         return Response({"status": 0,
                         "rects": rects.data,
                         "page_id": page_id,
