@@ -34,7 +34,9 @@ mkvirtualenv character --python=python3
 ```
 ### 加载测试数据
 下载测试数据 all_data_fixtures.json
-链接:https://pan.baidu.com/s/1dGN0NQx  密码:tci2
+链接:https://pan.baidu.com/s/1ht5dURE  密码:tci2
+
+
 测试数据admin。 用户admin 密码admin123
 ```
   python manage.py migrate
