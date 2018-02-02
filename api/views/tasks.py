@@ -110,7 +110,7 @@ class CCTaskViewSet(RectBulkOpMixin,
         task = retrieve_cctask(staff)
         if not task:
             return Response({"status": -1,
-                             "msg": "All tasks has been done!"})
+                             "msg": "All tasks have been done!"})
         return Response({"status": 0,
                         "rects": task.rect_set,
                         "task_id": task.pk})
@@ -161,7 +161,7 @@ class ClassifyTaskViewSet(RectBulkOpMixin,
         task = retrieve_classifytask(staff)
         if not task:
             return Response({"status": -1,
-                             "msg": "All tasks has been done!"})
+                             "msg": "All tasks have been done!"})
         return Response({"status": 0,
                         "rects": task.rect_set,
                         "char_set": task.char_set,
@@ -181,7 +181,7 @@ class PageTaskViewSet(RectBulkOpMixin,
         task = retrieve_pagetask(staff)
         if not task:
             return Response({"status": -1,
-                             "msg": "All tasks has been done!"})
+                             "msg": "All tasks have been done!"})
         pagerect_ids = [page['id'] for page in task.page_set]
         pages = PageRect.objects.filter(id__in=pagerect_ids).select_related('page')
         page_id = pages[0].page_id
@@ -270,14 +270,14 @@ class DelTaskViewSet(RectBulkOpMixin,
         task = retrieve_deltask(staff)
         if not task:
             return Response({"status": -1,
-                             "msg": "All tasks has been done!"})
+                             "msg": "All tasks have been done!"})
         queryset = task.del_task_items.prefetch_related('modifier', 'verifier')
 
         items = DeletionCheckItemSerializer(data=queryset, many=True)
         items.is_valid()
         if not task:
             return Response({"status": -1,
-                             "msg": "All tasks has been done!"})
+                             "msg": "All tasks have been done!"})
         return Response({"status": 0,
                         "rects": items.data,
                         "task_id": task.pk})
