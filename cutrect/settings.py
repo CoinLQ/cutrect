@@ -349,7 +349,7 @@ CACHES = {
 #http://www.jianshu.com/p/d8cbd4c72758
 
 
-DATABASE_ROUTERS = ['cutrect.db_router.DBRouter']
+# DATABASE_ROUTERS = ['cutrect.db_router.DBRouter']
 
 # 定制celery任务，使用AWS的SQS服务
 CELERY_TIMEZONE = 'UTC'
